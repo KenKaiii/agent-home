@@ -5,20 +5,40 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "scheme": "agent-home",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
+    "plugins": [
+      ["expo-router", { "root": "./src/app" }],
+      "expo-sqlite",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#0d1117"
+        }
+      ]
+    ],
+    "notification": {
+      "icon": "./assets/icon.png",
+      "color": "#58a6ff",
+      "androidMode": "default",
+      "androidCollapsedTitle": "Agent Home"
+    },
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0d1117"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.agenthome.app"
     },
     "android": {
+      "package": "com.agenthome.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#0d1117"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false

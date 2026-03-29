@@ -1,0 +1,25 @@
+name = "agent-home-relay"
+main = "src/index.ts"
+compatibility_date = "2025-03-25"
+compatibility_flags = ["nodejs_compat"]
+
+[durable_objects]
+bindings = [
+  { name = "RELAY_ROOM", class_name = "RelayRoom" }
+]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["RelayRoom"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "relay-db"
+database_id = "2d54a759-60ec-451a-b016-f1c75d0e35c1"
+
+# Non-secret config vars
+# [vars]
+# SOME_VAR = "value"
+
+# Secrets (set via `wrangler secret put JWT_SECRET`):
+# - JWT_SECRET

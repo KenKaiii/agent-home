@@ -1,0 +1,24 @@
+import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+
+export const agents = sqliteTable('agents', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  description: text('description'),
+  icon: text('icon'),
+  status: text('status').notNull().default('offline'),
+  lastMessageAt: integer('last_message_at'),
+});
+
+export const messages = sqliteTable('messages', {
+  id: text('id').primaryKey(),
+  agentId: text('agent_id').notNull(),
+  role: text('role').notNull(), // 'user' | 'assistant'
+  content: text('content').notNull(),
+  streaming: integer('streaming').notNull().default(0), // boolean: 0 or 1
+  createdAt: integer('created_at').notNull(),
+});
+
+export const settings = sqliteTable('settings', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+});

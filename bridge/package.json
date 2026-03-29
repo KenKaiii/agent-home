@@ -1,0 +1,25 @@
+{
+  "name": "@agent-home/bridge",
+  "version": "1.0.0",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@agent-home/protocol": "*",
+    "chalk": "^5.4.0",
+    "dotenv": "^16.5.0",
+    "nanoid": "^5.1.0",
+    "tree-kill": "^1.2.2",
+    "ws": "^8.18.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.0",
+    "tsx": "^4.19.0",
+    "typescript": "~5.9.2"
+  },
+  "private": true
+}
