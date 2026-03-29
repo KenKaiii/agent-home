@@ -63,7 +63,8 @@
   "workspaces": [
     "protocol",
     "relay",
-    "bridge"
+    "bridge",
+    "sdk"
   ],
   "private": true,
   "overrides": {
