@@ -7,6 +7,9 @@ import * as Device from 'expo-device';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 
+import { Cancel01Icon } from '@hugeicons/core-free-icons';
+import { HugeiconsIcon } from '@hugeicons/react-native';
+
 import { colors, fontSize, spacing } from '@/lib/constants';
 import { relayClient } from '@/lib/websocket';
 import { useConnectionStore } from '@/stores/connection';
@@ -135,7 +138,7 @@ export default function ScanScreen() {
         style={({ pressed }) => [styles.closeButton, pressed && styles.buttonPressed]}
         onPress={() => router.back()}
       >
-        <Text style={styles.closeButtonText}>✕</Text>
+        <HugeiconsIcon icon={Cancel01Icon} size={20} color={colors.text} />
       </Pressable>
     </View>
   );
@@ -203,10 +206,5 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  closeButtonText: {
-    color: colors.text,
-    fontSize: fontSize.xl,
-    fontWeight: 'bold',
   },
 });

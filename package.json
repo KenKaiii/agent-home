@@ -25,6 +25,8 @@
   },
   "dependencies": {
     "@expo/cli": "^55.0.19",
+    "@hugeicons/core-free-icons": "^4.0.0",
+    "@hugeicons/react-native": "^1.0.13",
     "@react-native-community/netinfo": "^11.5.2",
     "date-fns": "^4.1.0",
     "drizzle-orm": "^0.45.2",
@@ -46,6 +48,7 @@
     "react-native-markdown-display": "^7.0.2",
     "react-native-safe-area-context": "~5.6.2",
     "react-native-screens": "~4.23.0",
+    "react-native-svg": "^15.15.3",
     "zustand": "^5.0.12"
   },
   "devDependencies": {

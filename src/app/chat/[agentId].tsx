@@ -3,6 +3,9 @@ import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, View } from
 
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 
+import { AiBrain01Icon } from '@hugeicons/core-free-icons';
+import { HugeiconsIcon } from '@hugeicons/react-native';
+
 import { ChatBubble } from '@/components/ChatBubble';
 import { ChatInput } from '@/components/ChatInput';
 import { ConnectionStatus } from '@/components/ConnectionStatus';
@@ -51,7 +54,7 @@ export default function ChatScreen() {
       <ConnectionStatus />
       {messages.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyIcon}>{agent?.icon ?? '🤖'}</Text>
+          <HugeiconsIcon icon={AiBrain01Icon} size={48} color={colors.textSecondary} />
           <Text style={styles.emptyText}>
             Start a conversation with {agent?.name ?? 'this agent'}
           </Text>
@@ -91,10 +94,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing.xl,
-  },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: spacing.lg,
   },
   emptyText: {
     color: colors.textSecondary,

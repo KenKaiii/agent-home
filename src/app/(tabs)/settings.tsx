@@ -4,7 +4,9 @@ import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-nat
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 
-import { ConnectionStatus } from '@/components/ConnectionStatus';
+import { QrCodeIcon } from '@hugeicons/core-free-icons';
+import { HugeiconsIcon } from '@hugeicons/react-native';
+
 import { colors, fontSize, spacing } from '@/lib/constants';
 import { useConnectionStore } from '@/stores/connection';
 
@@ -31,34 +33,31 @@ export default function SettingsScreen() {
 
   const statusColor =
     status === 'connected' ? colors.green : status === 'connecting' ? colors.yellow : colors.red;
+  const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
 
   return (
     <ScrollView style={styles.container}>
-      <ConnectionStatus />
-
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Connection</Text>
-
-        <View style={styles.statusRow}>
-          <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-          <Text style={styles.statusText}>{status.charAt(0).toUpperCase() + status.slice(1)}</Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Relay Server</Text>
+          <View style={[styles.badge, { backgroundColor: statusColor + '22' }]}>
+            <View style={[styles.badgeDot, { backgroundColor: statusColor }]} />
+            <Text style={[styles.badgeText, { color: statusColor }]}>{statusLabel}</Text>
+          </View>
         </View>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Relay Server</Text>
 
         <Pressable
           style={({ pressed }) => [styles.qrButton, pressed && styles.buttonPressed]}
           onPress={() => router.push('/scan')}
         >
-          <Text style={styles.qrButtonText}>📷 Scan QR Code</Text>
+          <View style={styles.qrButtonContent}>
+            <HugeiconsIcon icon={QrCodeIcon} size={20} color="#ffffff" />
+            <Text style={styles.qrButtonText}>Scan QR Code</Text>
+          </View>
         </Pressable>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Notifications</Text>
-
         <View style={styles.toggleRow}>
           <Text style={styles.toggleLabel}>Push Notifications</Text>
           <Switch
@@ -68,17 +67,6 @@ export default function SettingsScreen() {
             thumbColor={colors.text}
           />
         </View>
-        <Text style={styles.hint}>
-          Receive notifications when agents respond while the app is in the background.
-        </Text>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>About</Text>
-        <Text style={styles.aboutText}>Agent Home v1.0.0</Text>
-        <Text style={styles.aboutText}>
-          Chat with AI agents running on your laptop, from anywhere.
-        </Text>
       </View>
     </ScrollView>
   );
@@ -94,31 +82,44 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.lg,
+  },
   sectionTitle: {
     color: colors.text,
     fontSize: fontSize.xl,
     fontWeight: 'bold',
-    marginBottom: spacing.lg,
   },
-  statusRow: {
+  badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
-  statusDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+  badgeDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
   },
-  statusText: {
-    color: colors.text,
-    fontSize: fontSize.md,
+  badgeText: {
+    fontSize: fontSize.sm,
+    fontWeight: '600',
   },
   qrButton: {
     backgroundColor: colors.accent,
     borderRadius: 8,
     padding: spacing.lg,
     alignItems: 'center',
+  },
+  qrButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   qrButtonText: {
     color: '#ffffff',
@@ -136,15 +137,5 @@ const styles = StyleSheet.create({
   toggleLabel: {
     color: colors.text,
     fontSize: fontSize.md,
-  },
-  hint: {
-    color: colors.textSecondary,
-    fontSize: fontSize.sm,
-    marginTop: spacing.sm,
-  },
-  aboutText: {
-    color: colors.textSecondary,
-    fontSize: fontSize.md,
-    marginBottom: spacing.xs,
   },
 });

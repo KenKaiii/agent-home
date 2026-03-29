@@ -1,8 +1,9 @@
-import { Text } from 'react-native';
-
 import { Tabs } from 'expo-router';
 
-import { colors, fontSize } from '@/lib/constants';
+import { AiBrain01Icon, Settings01Icon } from '@hugeicons/core-free-icons';
+import { HugeiconsIcon } from '@hugeicons/react-native';
+
+import { colors } from '@/lib/constants';
 
 export default function TabLayout() {
   return (
@@ -22,14 +23,16 @@ export default function TabLayout() {
         name="agents"
         options={{
           title: 'Agents',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: fontSize.xl, color }}>🤖</Text>,
+          tabBarIcon: ({ color }) => <HugeiconsIcon icon={AiBrain01Icon} size={22} color={color} />,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: 'Settings',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: fontSize.xl, color }}>⚙️</Text>,
+          tabBarIcon: ({ color }) => (
+            <HugeiconsIcon icon={Settings01Icon} size={22} color={color} />
+          ),
         }}
       />
     </Tabs>

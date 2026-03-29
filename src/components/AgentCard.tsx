@@ -2,6 +2,9 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useRouter } from 'expo-router';
 
+import { AiBrain01Icon } from '@hugeicons/core-free-icons';
+import { HugeiconsIcon } from '@hugeicons/react-native';
+
 import { colors, fontSize, spacing } from '@/lib/constants';
 import type { Agent } from '@/types';
 
@@ -20,7 +23,7 @@ export function AgentCard({ agent }: { agent: Agent }) {
       onPress={() => router.push(`/chat/${agent.id}`)}
     >
       <View style={styles.iconContainer}>
-        <Text style={styles.icon}>{agent.icon ?? '🤖'}</Text>
+        <HugeiconsIcon icon={AiBrain01Icon} size={24} color={colors.text} />
       </View>
       <View style={styles.info}>
         <View style={styles.nameRow}>
@@ -64,9 +67,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.md,
-  },
-  icon: {
-    fontSize: 24,
   },
   info: {
     flex: 1,

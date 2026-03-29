@@ -2,6 +2,8 @@ import { useCallback, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { MessageType } from '@agent-home/protocol';
+import { AiBrain01Icon } from '@hugeicons/core-free-icons';
+import { HugeiconsIcon } from '@hugeicons/react-native';
 import { nanoid } from 'nanoid/non-secure';
 
 import { AgentCard } from '@/components/AgentCard';
@@ -31,7 +33,7 @@ export default function AgentsScreen() {
       <ConnectionStatus />
       {agents.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyIcon}>🤖</Text>
+          <HugeiconsIcon icon={AiBrain01Icon} size={48} color={colors.textSecondary} />
           <Text style={styles.empty}>No agents connected</Text>
           <Text style={styles.hint}>Start the bridge on your laptop</Text>
         </View>
@@ -69,10 +71,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing.xl,
-  },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: spacing.lg,
   },
   empty: {
     color: colors.text,
