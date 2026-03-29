@@ -50,6 +50,7 @@ export function useWebSocket(ready: boolean = false) {
       const { agents } = msg as AgentListResponse;
       const mapped: Agent[] = agents.map((a) => ({
         id: a.id,
+        appId: '',
         name: a.name,
         description: a.description,
         icon: a.icon,

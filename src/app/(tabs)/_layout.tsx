@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 
-import { AiBrain01Icon, Settings01Icon } from '@hugeicons/core-free-icons';
+import { DashboardBrowsingIcon, Settings01Icon } from '@hugeicons/core-free-icons';
 import { HugeiconsIcon } from '@hugeicons/react-native';
 
 import { colors } from '@/lib/constants';
@@ -22,8 +22,10 @@ export default function TabLayout() {
       <Tabs.Screen
         name="agents"
         options={{
-          title: 'Agents',
-          tabBarIcon: ({ color }) => <HugeiconsIcon icon={AiBrain01Icon} size={22} color={color} />,
+          title: 'Apps',
+          tabBarIcon: ({ color }) => (
+            <HugeiconsIcon icon={DashboardBrowsingIcon} size={22} color={color} />
+          ),
         }}
       />
       <Tabs.Screen

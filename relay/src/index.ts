@@ -5,7 +5,7 @@ import { listDevices, upsertDevice } from './db/index';
 import { type TokenPayload, createToken, verifyToken } from './lib/token';
 import type { Env } from './types';
 
-const VALID_PLATFORMS = ['ios', 'android', 'web'] as const;
+const VALID_PLATFORMS = ['ios', 'android', 'web', 'macos', 'linux', 'windows'] as const;
 
 /** Extract and verify Bearer token from Authorization header */
 async function authenticateRequest(

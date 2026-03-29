@@ -3,6 +3,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import * as Clipboard from 'expo-clipboard';
 
+import { Copy01Icon } from '@hugeicons/core-free-icons';
+import { HugeiconsIcon } from '@hugeicons/react-native';
 import { format } from 'date-fns';
 import Markdown from 'react-native-markdown-display';
 
@@ -69,7 +71,7 @@ function ChatBubbleInner({ message }: { message: ChatMessage }) {
           <Text style={[styles.time, isUser && styles.timeUser]}>{timeStr}</Text>
           {!message.streaming && !isUser && (
             <Pressable onPress={handleCopy} hitSlop={8}>
-              <Text style={styles.copyButton}>📋</Text>
+              <HugeiconsIcon icon={Copy01Icon} size={12} color={colors.textSecondary} />
             </Pressable>
           )}
         </View>
@@ -121,8 +123,5 @@ const styles = StyleSheet.create({
   },
   timeUser: {
     color: 'rgba(255,255,255,0.6)',
-  },
-  copyButton: {
-    fontSize: 12,
   },
 });

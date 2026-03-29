@@ -1,5 +1,16 @@
+export interface ConnectedApp {
+  id: string;
+  name: string;
+  hostName: string;
+  platform: 'macos' | 'linux' | 'windows';
+  appVersion: string;
+  agentCount: number;
+  lastActiveAt: number;
+}
+
 export interface Agent {
   id: string;
+  appId: string;
   name: string;
   description?: string;
   icon?: string;

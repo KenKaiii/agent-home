@@ -28,6 +28,13 @@ export default function RootLayout() {
         >
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen
+            name="app/[appId]"
+            options={{
+              headerShown: true,
+              headerBackTitle: 'Back',
+            }}
+          />
+          <Stack.Screen
             name="chat/[agentId]"
             options={{
               headerShown: true,
