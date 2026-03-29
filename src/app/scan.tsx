@@ -1,7 +1,9 @@
 import { useRef, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, Vibration, View } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, Text, Vibration, View } from 'react-native';
 
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import Constants from 'expo-constants';
+import * as Device from 'expo-device';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 
@@ -61,6 +63,25 @@ export default function ScanScreen() {
       // Reconnect
       relayClient.disconnect();
       relayClient.connect(parsed.url, parsed.token);
+
+      // Register device metadata with relay
+      const httpUrl = parsed.url
+        .replace('ws://', 'http://')
+        .replace('wss://', 'https://')
+        .replace('/ws', '');
+
+      fetch(`${httpUrl}/devices/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${parsed.token}`,
+        },
+        body: JSON.stringify({
+          deviceName: Device.deviceName ?? Device.modelName ?? undefined,
+          platform: Platform.OS,
+          appVersion: Constants.expoConfig?.version ?? undefined,
+        }),
+      }).catch((err) => console.warn('[scan] Failed to register device metadata:', err));
 
       Alert.alert('Paired!', 'Successfully connected to your bridge.', [
         { text: 'OK', onPress: () => router.back() },

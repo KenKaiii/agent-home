@@ -65,7 +65,10 @@ export class RelayClient {
     const separator = this.url.includes('?') ? '&' : '?';
     const wsUrl = `${this.url}${separator}token=${this.token}`;
 
-    console.log('[ws] Connecting to:', this.url);
+    if (this.reconnectAttempt === 0) {
+      console.log('[ws] Connecting to:', this.url);
+    }
+
     this.ws = new WebSocket(wsUrl);
 
     this.ws.onopen = () => {
@@ -94,16 +97,18 @@ export class RelayClient {
       }
     };
 
-    this.ws.onclose = (event) => {
-      console.log('[ws] Disconnected from relay, code:', event.code, 'reason:', event.reason);
+    this.ws.onclose = () => {
+      const wasConnected = this._isConnected;
       this._isConnected = false;
       this.clearTimers();
+      if (wasConnected) {
+        console.log('[ws] Disconnected from relay');
+      }
       this.scheduleReconnect();
     };
 
-    this.ws.onerror = (err) => {
-      console.error('[ws] WebSocket error:', this.url, err);
-    };
+    // onerror always fires before onclose — suppress to avoid duplicate noise
+    this.ws.onerror = () => {};
   }
 
   private emit(type: string, message: RelayMessage) {
@@ -153,7 +158,12 @@ export class RelayClient {
   private scheduleReconnect() {
     const delay =
       RECONNECT_INTERVALS[Math.min(this.reconnectAttempt, RECONNECT_INTERVALS.length - 1)];
-    console.log(`[ws] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempt + 1})`);
+    // Only log the first few attempts, then go quiet
+    if (this.reconnectAttempt < 3) {
+      console.log(`[ws] Reconnecting in ${delay / 1000}s (attempt ${this.reconnectAttempt + 1})`);
+    } else if (this.reconnectAttempt === 3) {
+      console.log('[ws] Still reconnecting, suppressing further logs until connected');
+    }
     this.reconnectTimer = setTimeout(() => {
       this.reconnectAttempt++;
       this.doConnect();

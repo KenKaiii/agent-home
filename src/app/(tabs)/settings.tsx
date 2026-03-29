@@ -1,74 +1,28 @@
 import { useEffect, useState } from 'react';
-import {
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 
 import { ConnectionStatus } from '@/components/ConnectionStatus';
 import { colors, fontSize, spacing } from '@/lib/constants';
-import { relayClient } from '@/lib/websocket';
 import { useConnectionStore } from '@/stores/connection';
 
-const STORAGE_KEY_URL = 'relay-url';
-const STORAGE_KEY_TOKEN = 'relay-token';
 const STORAGE_KEY_PUSH = 'push-enabled';
 
 export default function SettingsScreen() {
-  const { relayUrl, token, status, setRelayUrl, setToken } = useConnectionStore();
-  const [urlInput, setUrlInput] = useState(relayUrl);
-  const [tokenInput, setTokenInput] = useState(token ?? '');
+  const { status } = useConnectionStore();
   const [pushEnabled, setPushEnabled] = useState(true);
 
   // Load persisted settings on mount
   useEffect(() => {
     (async () => {
-      const savedUrl = await SecureStore.getItemAsync(STORAGE_KEY_URL);
-      const savedToken = await SecureStore.getItemAsync(STORAGE_KEY_TOKEN);
       const savedPush = await SecureStore.getItemAsync(STORAGE_KEY_PUSH);
-
-      if (savedUrl) {
-        setUrlInput(savedUrl);
-        setRelayUrl(savedUrl);
-      }
-      if (savedToken) {
-        setTokenInput(savedToken);
-        setToken(savedToken);
-      }
       if (savedPush !== null) {
         setPushEnabled(savedPush !== 'false');
       }
     })();
-  }, [setRelayUrl, setToken]);
-
-  const handleSave = async () => {
-    setRelayUrl(urlInput);
-    setToken(tokenInput || null);
-
-    // Persist to secure store
-    await SecureStore.setItemAsync(STORAGE_KEY_URL, urlInput);
-    if (tokenInput) {
-      await SecureStore.setItemAsync(STORAGE_KEY_TOKEN, tokenInput);
-    } else {
-      await SecureStore.deleteItemAsync(STORAGE_KEY_TOKEN);
-    }
-
-    // Reconnect with new settings
-    relayClient.disconnect();
-    if (tokenInput) {
-      relayClient.connect(urlInput, tokenInput);
-    }
-
-    Alert.alert('Saved', 'Settings updated. Reconnecting...');
-  };
+  }, []);
 
   const handlePushToggle = async (value: boolean) => {
     setPushEnabled(value);
@@ -99,38 +53,6 @@ export default function SettingsScreen() {
           onPress={() => router.push('/scan')}
         >
           <Text style={styles.qrButtonText}>📷 Scan QR Code</Text>
-        </Pressable>
-
-        <Text style={styles.manualLabel}>or enter manually</Text>
-
-        <Text style={styles.label}>Relay URL</Text>
-        <TextInput
-          style={styles.input}
-          value={urlInput}
-          onChangeText={setUrlInput}
-          placeholder="ws://localhost:8080/ws"
-          placeholderTextColor={colors.textSecondary}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-
-        <Text style={styles.label}>Auth Token</Text>
-        <TextInput
-          style={styles.input}
-          value={tokenInput}
-          onChangeText={setTokenInput}
-          placeholder="Paste your token here"
-          placeholderTextColor={colors.textSecondary}
-          autoCapitalize="none"
-          autoCorrect={false}
-          secureTextEntry
-        />
-
-        <Pressable
-          style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
-          onPress={handleSave}
-        >
-          <Text style={styles.buttonText}>Save & Reconnect</Text>
         </Pressable>
       </View>
 
@@ -192,21 +114,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: fontSize.md,
   },
-  label: {
-    color: colors.textSecondary,
-    fontSize: fontSize.sm,
-    marginBottom: spacing.xs,
-    marginTop: spacing.md,
-  },
-  input: {
-    backgroundColor: colors.surface,
-    borderRadius: 8,
-    padding: spacing.md,
-    color: colors.text,
-    fontSize: fontSize.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
   qrButton: {
     backgroundColor: colors.accent,
     borderRadius: 8,
@@ -218,26 +125,8 @@ const styles = StyleSheet.create({
     fontSize: fontSize.lg,
     fontWeight: '700',
   },
-  manualLabel: {
-    color: colors.textSecondary,
-    fontSize: fontSize.sm,
-    textAlign: 'center',
-    marginTop: spacing.lg,
-  },
-  button: {
-    backgroundColor: colors.accent,
-    borderRadius: 8,
-    padding: spacing.md,
-    alignItems: 'center',
-    marginTop: spacing.xl,
-  },
   buttonPressed: {
     opacity: 0.8,
-  },
-  buttonText: {
-    color: '#ffffff',
-    fontSize: fontSize.md,
-    fontWeight: '600',
   },
   toggleRow: {
     flexDirection: 'row',

@@ -1,9 +1,20 @@
 import { ClientType } from '@agent-home/protocol';
 import { Hono } from 'hono';
 
-import { upsertDevice } from './db/index';
-import { createToken, verifyToken } from './lib/token';
+import { listDevices, upsertDevice } from './db/index';
+import { type TokenPayload, createToken, verifyToken } from './lib/token';
 import type { Env } from './types';
+
+const VALID_PLATFORMS = ['ios', 'android', 'web'] as const;
+
+/** Extract and verify Bearer token from Authorization header */
+async function authenticateRequest(
+  authHeader: string | undefined,
+  secret: string,
+): Promise<TokenPayload | null> {
+  if (!authHeader?.startsWith('Bearer ')) return null;
+  return verifyToken(authHeader.slice(7), secret);
+}
 
 export { RelayRoom } from './durable-objects/relay-room';
 
@@ -52,6 +63,11 @@ app.post('/auth/token', async (c) => {
 
 // REST agent list fallback
 app.get('/agents', async (c) => {
+  const payload = await authenticateRequest(c.req.header('Authorization'), c.env.JWT_SECRET);
+  if (!payload) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
   const id = c.env.RELAY_ROOM.idFromName('relay');
   const stub = c.env.RELAY_ROOM.get(id);
   const res = await stub.fetch(new Request('http://internal/agents'));
@@ -61,20 +77,56 @@ app.get('/agents', async (c) => {
 
 // Register device push token
 app.post('/devices/register', async (c) => {
+  const payload = await authenticateRequest(c.req.header('Authorization'), c.env.JWT_SECRET);
+  if (!payload) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
   const body = await c.req.json<{
-    clientId: string;
-    pushToken: string;
+    pushToken?: string;
+    deviceName?: string;
+    platform?: string;
+    appVersion?: string;
   }>();
 
-  if (!body.clientId || !body.pushToken) {
-    return c.json({ error: 'clientId and pushToken required' }, 400);
+  if (
+    body.platform &&
+    !VALID_PLATFORMS.includes(body.platform as (typeof VALID_PLATFORMS)[number])
+  ) {
+    return c.json({ error: `platform must be one of: ${VALID_PLATFORMS.join(', ')}` }, 400);
   }
 
   try {
-    await upsertDevice(c.env.DB, body.clientId, body.pushToken, 'app');
+    await upsertDevice(
+      c.env.DB,
+      payload.clientId,
+      body.pushToken ?? undefined,
+      payload.clientType,
+      body.deviceName,
+      body.platform,
+      body.appVersion,
+    );
     return c.json({ ok: true });
   } catch (err) {
     console.error('[relay] Failed to register device:', err);
+    return c.json({ error: 'Internal error' }, 500);
+  }
+});
+
+// List all registered devices
+app.get('/devices', async (c) => {
+  const payload = await authenticateRequest(c.req.header('Authorization'), c.env.JWT_SECRET);
+  if (!payload) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  try {
+    const devices = await listDevices(c.env.DB);
+    return c.json({
+      devices: devices.map(({ push_token: _, ...d }) => d),
+    });
+  } catch (err) {
+    console.error('[relay] Failed to list devices:', err);
     return c.json({ error: 'Internal error' }, 500);
   }
 });

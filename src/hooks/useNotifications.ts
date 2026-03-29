@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 
+import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import type { EventSubscription } from 'expo-modules-core';
 import * as Notifications from 'expo-notifications';
@@ -19,12 +20,12 @@ Notifications.setNotificationHandler({
 
 export function useNotifications() {
   const router = useRouter();
-  const { relayUrl } = useConnectionStore();
+  const { relayUrl, token } = useConnectionStore();
   const notificationListener = useRef<EventSubscription>(null);
   const responseListener = useRef<EventSubscription>(null);
 
   useEffect(() => {
-    registerForPushNotifications(relayUrl);
+    registerForPushNotifications(relayUrl, token);
 
     // Handle notification taps → navigate to correct chat
     responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
@@ -35,8 +36,8 @@ export function useNotifications() {
     });
 
     // Handle foreground notifications (just log, no system banner)
-    notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
-      console.log('[notifications] Received in foreground:', notification);
+    notificationListener.current = Notifications.addNotificationReceivedListener(() => {
+      // Foreground notification received — handled by system banner
     });
 
     return () => {
@@ -45,13 +46,17 @@ export function useNotifications() {
       notificationListener.current = null;
       responseListener.current = null;
     };
-  }, [router, relayUrl]);
+  }, [router, relayUrl, token]);
 }
 
-async function registerForPushNotifications(relayUrl: string) {
+async function registerForPushNotifications(relayUrl: string, authToken: string | null) {
   try {
     if (!Device.isDevice) {
       console.log('[notifications] Must use physical device for push notifications');
+      return null;
+    }
+
+    if (!authToken) {
       return null;
     }
 
@@ -75,9 +80,11 @@ async function registerForPushNotifications(relayUrl: string) {
       return null;
     }
 
-    const tokenData = await Notifications.getExpoPushTokenAsync();
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+    const tokenData = await Notifications.getExpoPushTokenAsync(
+      projectId ? { projectId } : undefined,
+    );
     const pushToken = tokenData.data;
-    console.log('[notifications] Push token:', pushToken);
 
     // Register push token with relay server
     const httpUrl = relayUrl
@@ -87,10 +94,15 @@ async function registerForPushNotifications(relayUrl: string) {
 
     await fetch(`${httpUrl}/devices/register`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      },
       body: JSON.stringify({
-        clientId: `app-${Device.modelName ?? 'unknown'}`,
         pushToken,
+        deviceName: Device.deviceName ?? Device.modelName ?? undefined,
+        platform: Platform.OS,
+        appVersion: Constants.expoConfig?.version ?? undefined,
       }),
     });
     console.log('[notifications] Push token registered with relay');

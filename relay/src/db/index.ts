@@ -41,15 +41,62 @@ export async function getHistory(
 export async function upsertDevice(
   db: D1Database,
   id: string,
-  pushToken: string,
+  pushToken: string | undefined,
   clientType: string,
+  deviceName?: string,
+  platform?: string,
+  appVersion?: string,
 ) {
+  const now = Date.now();
   await db
     .prepare(
-      'INSERT INTO devices (id, push_token, client_type, created_at) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET push_token = ?',
+      'INSERT INTO devices (id, push_token, client_type, device_name, platform, app_version, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET push_token = COALESCE(?, push_token), device_name = COALESCE(?, device_name), platform = COALESCE(?, platform), app_version = COALESCE(?, app_version), updated_at = ?',
     )
-    .bind(id, pushToken, clientType, Date.now(), pushToken)
+    .bind(
+      id,
+      pushToken ?? null,
+      clientType,
+      deviceName ?? null,
+      platform ?? null,
+      appVersion ?? null,
+      now,
+      now,
+      pushToken ?? null,
+      deviceName ?? null,
+      platform ?? null,
+      appVersion ?? null,
+      now,
+    )
     .run();
+}
+
+export async function listDevices(db: D1Database): Promise<
+  {
+    id: string;
+    push_token: string | null;
+    client_type: string;
+    device_name: string | null;
+    platform: string | null;
+    app_version: string | null;
+    created_at: number;
+    updated_at: number | null;
+  }[]
+> {
+  const result = await db
+    .prepare(
+      'SELECT id, push_token, client_type, device_name, platform, app_version, created_at, updated_at FROM devices ORDER BY created_at DESC',
+    )
+    .all<{
+      id: string;
+      push_token: string | null;
+      client_type: string;
+      device_name: string | null;
+      platform: string | null;
+      app_version: string | null;
+      created_at: number;
+      updated_at: number | null;
+    }>();
+  return result.results;
 }
 
 export async function getDevicesByType(
