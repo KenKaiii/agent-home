@@ -34,6 +34,14 @@ export default function RootLayout() {
               headerBackTitle: 'Back',
             }}
           />
+          <Stack.Screen
+            name="scan"
+            options={{
+              presentation: 'modal',
+              headerShown: true,
+              headerTitle: 'Scan QR Code',
+            }}
+          />
         </Stack>
       </SafeAreaProvider>
     </ErrorBoundary>

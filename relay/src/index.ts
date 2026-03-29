@@ -2,7 +2,7 @@ import { ClientType } from '@agent-home/protocol';
 import { Hono } from 'hono';
 
 import { upsertDevice } from './db/index';
-import { createToken } from './lib/token';
+import { createToken, verifyToken } from './lib/token';
 import type { Env } from './types';
 
 export { RelayRoom } from './durable-objects/relay-room';
@@ -11,6 +11,25 @@ const app = new Hono<Env>();
 
 // Health check
 app.get('/health', (c) => c.json({ status: 'ok', timestamp: Date.now() }));
+
+// Generate an app token using a valid bridge token (for QR pairing)
+app.post('/auth/pair', async (c) => {
+  const authHeader = c.req.header('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  const bearerToken = authHeader.slice(7);
+  const payload = await verifyToken(bearerToken, c.env.JWT_SECRET);
+  if (!payload || payload.clientType !== ClientType.BRIDGE) {
+    return c.json({ error: 'Unauthorized: valid bridge token required' }, 401);
+  }
+
+  const clientId = crypto.randomUUID();
+  const token = await createToken({ clientId, clientType: ClientType.APP }, c.env.JWT_SECRET);
+
+  return c.json({ token, clientId });
+});
 
 // Generate a token (secured by shared secret in header)
 app.post('/auth/token', async (c) => {

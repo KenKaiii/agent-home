@@ -1,10 +1,46 @@
 import dotenv from 'dotenv';
+import qrcode from 'qrcode-terminal';
 
 import { AgentManager } from './agent-manager.js';
 import { loadConfig } from './config.js';
 import { BridgeConnection } from './connection.js';
 
 dotenv.config();
+
+function deriveHttpUrl(wsUrl: string): string {
+  return wsUrl
+    .replace(/^wss:\/\//, 'https://')
+    .replace(/^ws:\/\//, 'http://')
+    .replace(/\/ws\/?$/, '');
+}
+
+async function generatePairingQR(relayUrl: string, bridgeToken: string): Promise<void> {
+  try {
+    const httpUrl = deriveHttpUrl(relayUrl);
+    const response = await fetch(`${httpUrl}/auth/pair`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${bridgeToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      const body = await response.text();
+      console.error(`[bridge] Failed to generate pairing token: ${response.status} ${body}`);
+      return;
+    }
+
+    const { token } = (await response.json()) as { token: string; clientId: string };
+    const qrPayload = JSON.stringify({ url: relayUrl, token });
+
+    console.log('\n[bridge] Scan this QR code with the Agent Home app to pair:\n');
+    qrcode.generate(qrPayload, { small: true });
+    console.log('');
+  } catch (err) {
+    console.error('[bridge] Failed to generate pairing QR code:', err);
+  }
+}
 
 async function main() {
   console.log('[bridge] Loading config...');
@@ -17,6 +53,7 @@ async function main() {
   connection.onConnect(async () => {
     console.log('[bridge] Registering agents...');
     await manager.startAll(config.agents);
+    await generatePairingQR(config.relayUrl, config.token);
   });
 
   connection.connect();

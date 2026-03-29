@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 
+import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 
 import { ConnectionStatus } from '@/components/ConnectionStatus';
@@ -92,6 +93,15 @@ export default function SettingsScreen() {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Relay Server</Text>
+
+        <Pressable
+          style={({ pressed }) => [styles.qrButton, pressed && styles.buttonPressed]}
+          onPress={() => router.push('/scan')}
+        >
+          <Text style={styles.qrButtonText}>📷 Scan QR Code</Text>
+        </Pressable>
+
+        <Text style={styles.manualLabel}>or enter manually</Text>
 
         <Text style={styles.label}>Relay URL</Text>
         <TextInput
@@ -196,6 +206,23 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  qrButton: {
+    backgroundColor: colors.accent,
+    borderRadius: 8,
+    padding: spacing.lg,
+    alignItems: 'center',
+  },
+  qrButtonText: {
+    color: '#ffffff',
+    fontSize: fontSize.lg,
+    fontWeight: '700',
+  },
+  manualLabel: {
+    color: colors.textSecondary,
+    fontSize: fontSize.sm,
+    textAlign: 'center',
+    marginTop: spacing.lg,
   },
   button: {
     backgroundColor: colors.accent,

@@ -12,6 +12,12 @@
       ["expo-router", { "root": "./src/app" }],
       "expo-sqlite",
       [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Agent Home to scan QR codes for pairing"
+        }
+      ],
+      [
         "expo-notifications",
         {
           "icon": "./assets/icon.png",
