@@ -1,4 +1,4 @@
-import { verifyToken, type TokenPayload } from './token';
+import { type TokenPayload, verifyToken } from './token';
 
 export async function authenticateUpgrade(
   request: Request,

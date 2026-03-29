@@ -1,7 +1,4 @@
-import {
-  MessageType,
-  type RelayMessage,
-} from '@agent-home/protocol';
+import { MessageType, type RelayMessage } from '@agent-home/protocol';
 import { nanoid } from 'nanoid';
 import WebSocket from 'ws';
 
@@ -114,9 +111,7 @@ export class BridgeConnection {
 
   private scheduleReconnect() {
     const delay =
-      RECONNECT_INTERVALS[
-        Math.min(this.reconnectAttempt, RECONNECT_INTERVALS.length - 1)
-      ];
+      RECONNECT_INTERVALS[Math.min(this.reconnectAttempt, RECONNECT_INTERVALS.length - 1)];
     console.log(`[bridge] Reconnecting in ${delay}ms...`);
     this.reconnectTimer = setTimeout(() => {
       this.reconnectAttempt++;

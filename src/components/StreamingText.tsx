@@ -13,9 +13,7 @@ export function StreamingCursor() {
     return () => clearInterval(timer);
   }, []);
 
-  return (
-    <Text style={[styles.cursor, { opacity: visible ? 1 : 0 }]}>▊</Text>
-  );
+  return <Text style={[styles.cursor, { opacity: visible ? 1 : 0 }]}>▊</Text>;
 }
 
 const styles = StyleSheet.create({

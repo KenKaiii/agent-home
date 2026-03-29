@@ -1,15 +1,16 @@
+import { useEffect, useRef } from 'react';
+
 import { MessageType } from '@agent-home/protocol';
 import type {
   AgentListResponse,
   AgentStatusMessage,
+  ChatReceive,
   ChatStream,
   ChatStreamEnd,
-  ChatReceive,
 } from '@agent-home/protocol';
 import NetInfo from '@react-native-community/netinfo';
 import { eq } from 'drizzle-orm';
 import { nanoid } from 'nanoid/non-secure';
-import { useEffect, useRef } from 'react';
 
 import { db, schema } from '@/db';
 import { relayClient } from '@/lib/websocket';
@@ -44,106 +45,88 @@ export function useWebSocket() {
     });
 
     // --- Agent list ---
-    const unsubAgentList = relayClient.on(
-      MessageType.AGENT_LIST_RESPONSE,
-      (msg) => {
-        const { agents } = msg as AgentListResponse;
-        const mapped: Agent[] = agents.map((a) => ({
-          id: a.id,
-          name: a.name,
-          description: a.description,
-          icon: a.icon,
-          status: a.status,
-        }));
-        setAgents(mapped);
+    const unsubAgentList = relayClient.on(MessageType.AGENT_LIST_RESPONSE, (msg) => {
+      const { agents } = msg as AgentListResponse;
+      const mapped: Agent[] = agents.map((a) => ({
+        id: a.id,
+        name: a.name,
+        description: a.description,
+        icon: a.icon,
+        status: a.status,
+      }));
+      setAgents(mapped);
 
-        // Sync to local DB
-        for (const agent of mapped) {
-          db.insert(schema.agents)
-            .values({
-              id: agent.id,
+      // Sync to local DB
+      for (const agent of mapped) {
+        db.insert(schema.agents)
+          .values({
+            id: agent.id,
+            name: agent.name,
+            description: agent.description ?? null,
+            icon: agent.icon ?? null,
+            status: agent.status,
+          })
+          .onConflictDoUpdate({
+            target: schema.agents.id,
+            set: {
               name: agent.name,
               description: agent.description ?? null,
               icon: agent.icon ?? null,
               status: agent.status,
-            })
-            .onConflictDoUpdate({
-              target: schema.agents.id,
-              set: {
-                name: agent.name,
-                description: agent.description ?? null,
-                icon: agent.icon ?? null,
-                status: agent.status,
-              },
-            })
-            .run();
-        }
-      },
-    );
+            },
+          })
+          .run();
+      }
+    });
 
     // --- Agent status changes ---
-    const unsubStatus = relayClient.on(
-      MessageType.AGENT_STATUS,
-      (msg) => {
-        const { agentId, status } = msg as AgentStatusMessage;
-        updateStatus(agentId, status);
+    const unsubStatus = relayClient.on(MessageType.AGENT_STATUS, (msg) => {
+      const { agentId, status } = msg as AgentStatusMessage;
+      updateStatus(agentId, status);
 
-        db.update(schema.agents)
-          .set({ status })
-          .where(eq(schema.agents.id, agentId))
-          .run();
-      },
-    );
+      db.update(schema.agents).set({ status }).where(eq(schema.agents.id, agentId)).run();
+    });
 
     // --- Streaming tokens ---
-    const unsubStream = relayClient.on(
-      MessageType.CHAT_STREAM,
-      (msg) => {
-        const { messageId, agentId, token: tkn } = msg as ChatStream;
-        appendToken(messageId, agentId, tkn);
-      },
-    );
+    const unsubStream = relayClient.on(MessageType.CHAT_STREAM, (msg) => {
+      const { messageId, agentId, token: tkn } = msg as ChatStream;
+      appendToken(messageId, agentId, tkn);
+    });
 
     // --- Stream end ---
-    const unsubStreamEnd = relayClient.on(
-      MessageType.CHAT_STREAM_END,
-      (msg) => {
-        const { messageId, agentId, content } = msg as ChatStreamEnd;
-        finalizeMessage(messageId);
+    const unsubStreamEnd = relayClient.on(MessageType.CHAT_STREAM_END, (msg) => {
+      const { messageId, agentId, content } = msg as ChatStreamEnd;
+      finalizeMessage(messageId);
 
-        db.insert(schema.messages)
-          .values({
-            id: messageId,
-            agentId,
-            role: 'assistant',
-            content,
-            streaming: 0,
-            createdAt: msg.timestamp,
-          })
-          .onConflictDoNothing()
-          .run();
-      },
-    );
+      db.insert(schema.messages)
+        .values({
+          id: messageId,
+          agentId,
+          role: 'assistant',
+          content,
+          streaming: 0,
+          createdAt: msg.timestamp,
+        })
+        .onConflictDoNothing()
+        .run();
+    });
 
     // --- Complete messages ---
-    const unsubReceive = relayClient.on(
-      MessageType.CHAT_RECEIVE,
-      (msg) => {
-        const { messageId, agentId, content } = msg as ChatReceive;
+    const unsubReceive = relayClient.on(MessageType.CHAT_RECEIVE, (msg) => {
+      const { messageId, agentId, content } = msg as ChatReceive;
 
-        db.insert(schema.messages)
-          .values({
-            id: messageId,
-            agentId,
-            role: 'assistant',
-            content,
-            streaming: 0,
-            createdAt: msg.timestamp,
-          })
-          .onConflictDoNothing()
-          .run();
-      },
-    );
+      db.insert(schema.messages)
+        .values({
+          id: messageId,
+          agentId,
+          role: 'assistant',
+          content,
+          streaming: 0,
+          createdAt: msg.timestamp,
+        })
+        .onConflictDoNothing()
+        .run();
+    });
 
     // --- Error handling ---
     const unsubError = relayClient.on(MessageType.ERROR, (msg) => {
@@ -179,6 +162,7 @@ export function useWebSocket() {
       connectedRef.current = false;
       setStatus('disconnected');
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- store selectors are stable refs
   }, [token, relayUrl]);
 }
 

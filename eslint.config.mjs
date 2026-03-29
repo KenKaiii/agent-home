@@ -12,9 +12,12 @@ export default [
     },
     rules: {
       'prettier/prettier': 'warn',
+      'import/no-unresolved': 'off',
+      'import/namespace': 'off',
+      'import/no-duplicates': 'off',
     },
   },
   {
-    ignores: ['dist/', 'node_modules/', '.expo/', 'ios/', 'android/'],
+    ignores: ['**/dist/', 'node_modules/', '.expo/', 'ios/', 'android/'],
   },
 ];

@@ -1,4 +1,3 @@
-import * as SecureStore from 'expo-secure-store';
 import { useEffect, useState } from 'react';
 import {
   Alert,
@@ -11,6 +10,8 @@ import {
   View,
 } from 'react-native';
 
+import * as SecureStore from 'expo-secure-store';
+
 import { ConnectionStatus } from '@/components/ConnectionStatus';
 import { colors, fontSize, spacing } from '@/lib/constants';
 import { relayClient } from '@/lib/websocket';
@@ -21,8 +22,7 @@ const STORAGE_KEY_TOKEN = 'relay-token';
 const STORAGE_KEY_PUSH = 'push-enabled';
 
 export default function SettingsScreen() {
-  const { relayUrl, token, status, setRelayUrl, setToken } =
-    useConnectionStore();
+  const { relayUrl, token, status, setRelayUrl, setToken } = useConnectionStore();
   const [urlInput, setUrlInput] = useState(relayUrl);
   const [tokenInput, setTokenInput] = useState(token ?? '');
   const [pushEnabled, setPushEnabled] = useState(true);
@@ -75,11 +75,7 @@ export default function SettingsScreen() {
   };
 
   const statusColor =
-    status === 'connected'
-      ? colors.green
-      : status === 'connecting'
-        ? colors.yellow
-        : colors.red;
+    status === 'connected' ? colors.green : status === 'connecting' ? colors.yellow : colors.red;
 
   return (
     <ScrollView style={styles.container}>
@@ -90,9 +86,7 @@ export default function SettingsScreen() {
 
         <View style={styles.statusRow}>
           <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-          <Text style={styles.statusText}>
-            {status.charAt(0).toUpperCase() + status.slice(1)}
-          </Text>
+          <Text style={styles.statusText}>{status.charAt(0).toUpperCase() + status.slice(1)}</Text>
         </View>
       </View>
 
@@ -123,10 +117,7 @@ export default function SettingsScreen() {
         />
 
         <Pressable
-          style={({ pressed }) => [
-            styles.button,
-            pressed && styles.buttonPressed,
-          ]}
+          style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
           onPress={handleSave}
         >
           <Text style={styles.buttonText}>Save & Reconnect</Text>

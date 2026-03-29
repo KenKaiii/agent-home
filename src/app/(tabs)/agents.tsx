@@ -1,7 +1,8 @@
-import { MessageType } from '@agent-home/protocol';
-import { nanoid } from 'nanoid/non-secure';
 import { useCallback, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+
+import { MessageType } from '@agent-home/protocol';
+import { nanoid } from 'nanoid/non-secure';
 
 import { AgentCard } from '@/components/AgentCard';
 import { ConnectionStatus } from '@/components/ConnectionStatus';

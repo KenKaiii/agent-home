@@ -1,9 +1,10 @@
-import type { EventSubscription } from 'expo-modules-core';
-import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
-import { useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
+
+import * as Device from 'expo-device';
+import type { EventSubscription } from 'expo-modules-core';
+import * as Notifications from 'expo-notifications';
+import { useRouter } from 'expo-router';
 
 import { useConnectionStore } from '@/stores/connection';
 
@@ -26,19 +27,17 @@ export function useNotifications() {
     registerForPushNotifications(relayUrl);
 
     // Handle notification taps → navigate to correct chat
-    responseListener.current =
-      Notifications.addNotificationResponseReceivedListener((response) => {
-        const data = response.notification.request.content.data;
-        if (data?.agentId) {
-          router.push(`/chat/${data.agentId as string}`);
-        }
-      });
+    responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data;
+      if (data?.agentId) {
+        router.push(`/chat/${data.agentId as string}`);
+      }
+    });
 
     // Handle foreground notifications (just log, no system banner)
-    notificationListener.current =
-      Notifications.addNotificationReceivedListener((notification) => {
-        console.log('[notifications] Received in foreground:', notification);
-      });
+    notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
+      console.log('[notifications] Received in foreground:', notification);
+    });
 
     return () => {
       notificationListener.current?.remove();
@@ -63,8 +62,7 @@ async function registerForPushNotifications(relayUrl: string) {
       });
     }
 
-    const { status: existingStatus } =
-      await Notifications.getPermissionsAsync();
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
 
     if (existingStatus !== 'granted') {

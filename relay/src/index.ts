@@ -1,9 +1,9 @@
-import { Hono } from 'hono';
 import { ClientType } from '@agent-home/protocol';
+import { Hono } from 'hono';
 
-import type { Env } from './types';
-import { createToken } from './lib/token';
 import { upsertDevice } from './db/index';
+import { createToken } from './lib/token';
+import type { Env } from './types';
 
 export { RelayRoom } from './durable-objects/relay-room';
 
@@ -24,8 +24,7 @@ app.post('/auth/token', async (c) => {
     clientId?: string;
   }>();
 
-  const clientType =
-    body.clientType === 'bridge' ? ClientType.BRIDGE : ClientType.APP;
+  const clientType = body.clientType === 'bridge' ? ClientType.BRIDGE : ClientType.APP;
   const clientId = body.clientId ?? crypto.randomUUID();
   const token = await createToken({ clientId, clientType }, c.env.JWT_SECRET);
 

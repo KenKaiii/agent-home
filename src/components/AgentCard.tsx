@@ -1,5 +1,6 @@
-import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+
+import { useRouter } from 'expo-router';
 
 import { colors, fontSize, spacing } from '@/lib/constants';
 import type { Agent } from '@/types';
@@ -15,10 +16,7 @@ export function AgentCard({ agent }: { agent: Agent }) {
 
   return (
     <Pressable
-      style={({ pressed }) => [
-        styles.container,
-        pressed && styles.pressed,
-      ]}
+      style={({ pressed }) => [styles.container, pressed && styles.pressed]}
       onPress={() => router.push(`/chat/${agent.id}`)}
     >
       <View style={styles.iconContainer}>
@@ -29,12 +27,7 @@ export function AgentCard({ agent }: { agent: Agent }) {
           <Text style={styles.name} numberOfLines={1}>
             {agent.name}
           </Text>
-          <View
-            style={[
-              styles.statusDot,
-              { backgroundColor: statusColor[agent.status] },
-            ]}
-          />
+          <View style={[styles.statusDot, { backgroundColor: statusColor[agent.status] }]} />
         </View>
         {agent.description ? (
           <Text style={styles.description} numberOfLines={1}>

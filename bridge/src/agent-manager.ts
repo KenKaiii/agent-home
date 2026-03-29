@@ -1,7 +1,4 @@
-import {
-  MessageType,
-  type ChatForward,
-} from '@agent-home/protocol';
+import { type ChatForward, MessageType } from '@agent-home/protocol';
 import { nanoid } from 'nanoid';
 
 import type { AgentAdapter } from './agents/base.js';

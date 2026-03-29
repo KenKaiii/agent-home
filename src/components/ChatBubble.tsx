@@ -1,7 +1,9 @@
-import * as Clipboard from 'expo-clipboard';
-import { format } from 'date-fns';
 import { memo, useCallback } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+
+import * as Clipboard from 'expo-clipboard';
+
+import { format } from 'date-fns';
 import Markdown from 'react-native-markdown-display';
 
 import { StreamingCursor } from '@/components/StreamingText';
@@ -54,18 +56,8 @@ function ChatBubbleInner({ message }: { message: ChatMessage }) {
   }, [message.content]);
 
   return (
-    <View
-      style={[
-        styles.container,
-        isUser ? styles.userContainer : styles.agentContainer,
-      ]}
-    >
-      <View
-        style={[
-          styles.bubble,
-          isUser ? styles.userBubble : styles.agentBubble,
-        ]}
-      >
+    <View style={[styles.container, isUser ? styles.userContainer : styles.agentContainer]}>
+      <View style={[styles.bubble, isUser ? styles.userBubble : styles.agentBubble]}>
         {isUser ? (
           <Text style={styles.userText}>{message.content}</Text>
         ) : (
@@ -74,9 +66,7 @@ function ChatBubbleInner({ message }: { message: ChatMessage }) {
         {message.streaming && <StreamingCursor />}
 
         <View style={styles.footer}>
-          <Text style={[styles.time, isUser && styles.timeUser]}>
-            {timeStr}
-          </Text>
+          <Text style={[styles.time, isUser && styles.timeUser]}>{timeStr}</Text>
           {!message.streaming && !isUser && (
             <Pressable onPress={handleCopy} hitSlop={8}>
               <Text style={styles.copyButton}>📋</Text>

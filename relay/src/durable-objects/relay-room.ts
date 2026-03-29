@@ -1,24 +1,24 @@
-import { DurableObject } from 'cloudflare:workers';
 import {
-  type AgentWithStatus,
-  AgentStatus,
-  type ChatForward,
-  type ChatSend,
-  type ChatReceive,
-  type ChatStreamEnd,
-  type AgentRegister,
-  type AgentUnregister,
   type AgentHeartbeat,
   type AgentListRequest,
+  type AgentRegister,
+  AgentStatus,
+  type AgentUnregister,
+  type AgentWithStatus,
+  type ChatForward,
+  type ChatReceive,
+  type ChatSend,
+  type ChatStreamEnd,
   type HistoryRequest,
-  type RelayMessage as RelayMessageType,
-  RelayMessage,
   MessageType,
+  RelayMessageSchema,
+  type RelayMessage as RelayMessageType,
 } from '@agent-home/protocol';
+import { DurableObject } from 'cloudflare:workers';
 
-import { insertMessage, getHistory, getDevicesByType } from '../db/index';
-import { sendPushNotification } from '../lib/push';
+import { getDevicesByType, getHistory, insertMessage } from '../db/index';
 import { authenticateUpgrade } from '../lib/auth';
+import { sendPushNotification } from '../lib/push';
 
 interface WebSocketAttachment {
   clientId: string;
@@ -107,11 +107,9 @@ export class RelayRoom extends DurableObject<AppEnv> {
 
     try {
       const raw = JSON.parse(
-        typeof message === 'string'
-          ? message
-          : new TextDecoder().decode(message),
+        typeof message === 'string' ? message : new TextDecoder().decode(message),
       );
-      const result = RelayMessage.safeParse(raw);
+      const result = RelayMessageSchema.safeParse(raw);
       if (!result.success) {
         console.error('[ws] Invalid message:', result.error.format());
         this.sendTo(ws, {
@@ -154,10 +152,7 @@ export class RelayRoom extends DurableObject<AppEnv> {
 
   async webSocketError(ws: WebSocket, error: unknown) {
     const att = this.getAttachment(ws);
-    console.error(
-      `[ws] Error from ${att?.clientId ?? 'unknown'}:`,
-      error,
-    );
+    console.error(`[ws] Error from ${att?.clientId ?? 'unknown'}:`, error);
   }
 
   private async routeMessage(
@@ -246,10 +241,7 @@ export class RelayRoom extends DurableObject<AppEnv> {
     this.sendTo(bridgeWs, forward);
   }
 
-  private handleAgentRegister(
-    message: AgentRegister,
-    sender: WebSocketAttachment,
-  ) {
+  private handleAgentRegister(message: AgentRegister, sender: WebSocketAttachment) {
     const agentInfo = message.agent;
     this.agents.set(agentInfo.id, {
       ...agentInfo,
@@ -267,10 +259,7 @@ export class RelayRoom extends DurableObject<AppEnv> {
     });
   }
 
-  private handleAgentUnregister(
-    message: AgentUnregister,
-    sender: WebSocketAttachment,
-  ) {
+  private handleAgentUnregister(message: AgentUnregister, sender: WebSocketAttachment) {
     const agent = this.agents.get(message.agentId);
     if (agent && agent.bridgeId === sender.clientId) {
       agent.status = AgentStatus.OFFLINE;
@@ -284,10 +273,7 @@ export class RelayRoom extends DurableObject<AppEnv> {
     }
   }
 
-  private handleHeartbeat(
-    message: AgentHeartbeat,
-    sender: WebSocketAttachment,
-  ) {
+  private handleHeartbeat(message: AgentHeartbeat, sender: WebSocketAttachment) {
     for (const agentId of message.agentIds) {
       const agent = this.agents.get(agentId);
       if (agent && agent.bridgeId === sender.clientId) {
@@ -305,10 +291,7 @@ export class RelayRoom extends DurableObject<AppEnv> {
     });
   }
 
-  private async handleHistoryRequest(
-    message: HistoryRequest,
-    senderWs: WebSocket,
-  ) {
+  private async handleHistoryRequest(message: HistoryRequest, senderWs: WebSocket) {
     try {
       const limit = message.limit ?? 50;
       const rows = await getHistory(this.env.DB, message.agentId, limit);
@@ -337,9 +320,7 @@ export class RelayRoom extends DurableObject<AppEnv> {
     }
   }
 
-  private async persistAssistantMessage(
-    message: ChatReceive | ChatStreamEnd,
-  ) {
+  private async persistAssistantMessage(message: ChatReceive | ChatStreamEnd) {
     try {
       await insertMessage(
         this.env.DB,
@@ -361,8 +342,7 @@ export class RelayRoom extends DurableObject<AppEnv> {
       const devices = await getDevicesByType(this.env.DB, 'app');
       const agentData = this.agents.get(agentId);
       const agentName = agentData?.name ?? agentId;
-      const preview =
-        content.length > 100 ? content.slice(0, 100) + '...' : content;
+      const preview = content.length > 100 ? content.slice(0, 100) + '...' : content;
 
       for (const device of devices) {
         if (device.push_token) {
@@ -377,8 +357,6 @@ export class RelayRoom extends DurableObject<AppEnv> {
   }
 
   getAgentList(): AgentWithStatus[] {
-    return Array.from(this.agents.values()).map(
-      ({ bridgeId: _, ...agent }) => agent,
-    );
+    return Array.from(this.agents.values()).map(({ bridgeId: _, ...agent }) => agent);
   }
 }

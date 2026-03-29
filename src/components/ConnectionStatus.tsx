@@ -26,10 +26,7 @@ export function ConnectionStatus() {
   };
 
   return (
-    <Pressable
-      style={[styles.container, { backgroundColor: bgColor }]}
-      onPress={handleRetry}
-    >
+    <Pressable style={[styles.container, { backgroundColor: bgColor }]} onPress={handleRetry}>
       <Text style={styles.text}>{label}</Text>
     </Pressable>
   );

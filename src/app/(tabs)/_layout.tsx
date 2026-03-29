@@ -1,5 +1,6 @@
-import { Tabs } from 'expo-router';
 import { Text } from 'react-native';
+
+import { Tabs } from 'expo-router';
 
 import { colors, fontSize } from '@/lib/constants';
 
@@ -21,18 +22,14 @@ export default function TabLayout() {
         name="agents"
         options={{
           title: 'Agents',
-          tabBarIcon: ({ color }) => (
-            <Text style={{ fontSize: fontSize.xl, color }}>🤖</Text>
-          ),
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: fontSize.xl, color }}>🤖</Text>,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: 'Settings',
-          tabBarIcon: ({ color }) => (
-            <Text style={{ fontSize: fontSize.xl, color }}>⚙️</Text>
-          ),
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: fontSize.xl, color }}>⚙️</Text>,
         }}
       />
     </Tabs>

@@ -1,10 +1,6 @@
 import { create } from 'zustand';
 
-export type ConnectionStatus =
-  | 'connecting'
-  | 'connected'
-  | 'disconnected'
-  | 'error';
+export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
 
 interface ConnectionStore {
   status: ConnectionStatus;

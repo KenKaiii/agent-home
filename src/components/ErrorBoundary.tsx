@@ -32,9 +32,7 @@ export class ErrorBoundary extends Component<Props, State> {
         <View style={styles.container}>
           <Text style={styles.icon}>⚠️</Text>
           <Text style={styles.title}>Something went wrong</Text>
-          <Text style={styles.message}>
-            {this.state.error?.message ?? 'Unknown error'}
-          </Text>
+          <Text style={styles.message}>{this.state.error?.message ?? 'Unknown error'}</Text>
           <Pressable
             style={styles.button}
             onPress={() => this.setState({ hasError: false, error: null })}

@@ -1,13 +1,7 @@
-import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useEffect, useRef } from 'react';
-import {
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
+
+import { useLocalSearchParams, useNavigation } from 'expo-router';
 
 import { ChatBubble } from '@/components/ChatBubble';
 import { ChatInput } from '@/components/ChatInput';
@@ -46,8 +40,7 @@ export default function ChatScreen() {
     });
   }, [agent, agentId, navigation]);
 
-  const isDisabled =
-    connectionStatus !== 'connected' || agent?.status === 'offline';
+  const isDisabled = connectionStatus !== 'connected' || agent?.status === 'offline';
 
   return (
     <KeyboardAvoidingView
@@ -70,15 +63,11 @@ export default function ChatScreen() {
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => <ChatBubble message={item} />}
           contentContainerStyle={styles.list}
-          onContentSizeChange={() =>
-            listRef.current?.scrollToEnd({ animated: true })
-          }
+          onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
           ListFooterComponent={
             isStreaming ? (
               <View style={styles.typingContainer}>
-                <Text style={styles.typingText}>
-                  {agent?.name ?? 'Agent'} is typing...
-                </Text>
+                <Text style={styles.typingText}>{agent?.name ?? 'Agent'} is typing...</Text>
               </View>
             ) : null
           }

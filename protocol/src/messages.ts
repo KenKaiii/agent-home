@@ -129,7 +129,7 @@ export const ErrorMessageSchema = BaseMessage.extend({
 export type ErrorMessage = z.infer<typeof ErrorMessageSchema>;
 
 // Discriminated union of all messages
-export const RelayMessage = z.discriminatedUnion('type', [
+export const RelayMessageSchema = z.discriminatedUnion('type', [
   ChatSendSchema,
   ChatReceiveSchema,
   ChatStreamSchema,
@@ -145,4 +145,4 @@ export const RelayMessage = z.discriminatedUnion('type', [
   ChatForwardSchema,
   ErrorMessageSchema,
 ]);
-export type RelayMessage = z.infer<typeof RelayMessage>;
+export type RelayMessage = z.infer<typeof RelayMessageSchema>;

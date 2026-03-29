@@ -1,7 +1,4 @@
-import {
-  MessageType,
-  type RelayMessage,
-} from '@agent-home/protocol';
+import { MessageType, type RelayMessage } from '@agent-home/protocol';
 import { nanoid } from 'nanoid/non-secure';
 
 import { HEARTBEAT_INTERVAL, RECONNECT_INTERVALS } from './config';
@@ -141,9 +138,7 @@ export class RelayClient {
 
   private scheduleReconnect() {
     const delay =
-      RECONNECT_INTERVALS[
-        Math.min(this.reconnectAttempt, RECONNECT_INTERVALS.length - 1)
-      ];
+      RECONNECT_INTERVALS[Math.min(this.reconnectAttempt, RECONNECT_INTERVALS.length - 1)];
     console.log(`[ws] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempt + 1})`);
     this.reconnectTimer = setTimeout(() => {
       this.reconnectAttempt++;

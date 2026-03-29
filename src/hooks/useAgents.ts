@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 
 import { useAgentsStore } from '@/stores/agents';
-import type { Agent } from '@/types';
 
 export function useAgents() {
   const agentMap = useAgentsStore((s) => s.agents);
