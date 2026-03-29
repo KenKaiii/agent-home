@@ -1,7 +1,7 @@
 import { MessageType, type RelayMessage } from '@agent-home/protocol';
 import { nanoid } from 'nanoid/non-secure';
 
-import { HEARTBEAT_INTERVAL, RECONNECT_INTERVALS } from './config';
+import { HEARTBEAT_INTERVAL, HEARTBEAT_TIMEOUT, RECONNECT_INTERVALS } from './config';
 
 type MessageHandler = (message: RelayMessage) => void;
 
@@ -13,6 +13,7 @@ export class RelayClient {
   private reconnectAttempt = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  private heartbeatTimeoutTimer: ReturnType<typeof setTimeout> | null = null;
   private sendQueue: string[] = [];
   private _isConnected = false;
 
@@ -84,6 +85,7 @@ export class RelayClient {
 
     this.ws.onmessage = (event) => {
       try {
+        this.clearHeartbeatTimeout();
         const message = JSON.parse(event.data as string) as RelayMessage;
         this.emit(message.type, message);
         this.emit('*', message);
@@ -123,17 +125,29 @@ export class RelayClient {
   private startHeartbeat() {
     this.heartbeatTimer = setInterval(() => {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-        // Send a simple ping-like message
+        // Send an agent list request as keepalive (also syncs agent state)
         this.ws.send(
           JSON.stringify({
             id: nanoid(),
-            type: MessageType.AGENT_HEARTBEAT,
+            type: MessageType.AGENT_LIST,
             timestamp: Date.now(),
-            agentIds: [],
           }),
         );
+
+        // Arm a timeout — if no message arrives before it fires, the server is unresponsive
+        this.heartbeatTimeoutTimer = setTimeout(() => {
+          console.log('[ws] No heartbeat response, closing connection');
+          this.ws?.close(4000, 'Heartbeat timeout');
+        }, HEARTBEAT_TIMEOUT);
       }
     }, HEARTBEAT_INTERVAL);
+  }
+
+  private clearHeartbeatTimeout() {
+    if (this.heartbeatTimeoutTimer) {
+      clearTimeout(this.heartbeatTimeoutTimer);
+      this.heartbeatTimeoutTimer = null;
+    }
   }
 
   private scheduleReconnect() {
@@ -155,6 +169,7 @@ export class RelayClient {
       clearInterval(this.heartbeatTimer);
       this.heartbeatTimer = null;
     }
+    this.clearHeartbeatTimeout();
   }
 }
 

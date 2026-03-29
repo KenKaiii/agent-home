@@ -17,8 +17,3 @@ export const messages = sqliteTable('messages', {
   streaming: integer('streaming').notNull().default(0), // boolean: 0 or 1
   createdAt: integer('created_at').notNull(),
 });
-
-export const settings = sqliteTable('settings', {
-  key: text('key').primaryKey(),
-  value: text('value').notNull(),
-});

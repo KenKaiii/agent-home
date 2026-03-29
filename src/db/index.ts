@@ -28,11 +28,6 @@ expoDb.execSync(`
     created_at INTEGER NOT NULL
   );
 
-  CREATE TABLE IF NOT EXISTS settings (
-    key TEXT PRIMARY KEY,
-    value TEXT NOT NULL
-  );
-
   CREATE INDEX IF NOT EXISTS idx_messages_agent_id ON messages(agent_id);
   CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
 `);

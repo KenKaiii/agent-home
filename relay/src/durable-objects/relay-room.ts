@@ -80,6 +80,12 @@ export class RelayRoom extends DurableObject<AppEnv> {
   }
 
   async fetch(request: Request): Promise<Response> {
+    // Internal agent list request (from REST endpoint)
+    const url = new URL(request.url);
+    if (url.pathname === '/agents') {
+      return Response.json({ agents: this.getAgentList() });
+    }
+
     const payload = await authenticateUpgrade(request, this.env.JWT_SECRET);
     if (!payload) {
       return new Response('Unauthorized', { status: 401 });
@@ -294,7 +300,7 @@ export class RelayRoom extends DurableObject<AppEnv> {
   private async handleHistoryRequest(message: HistoryRequest, senderWs: WebSocket) {
     try {
       const limit = message.limit ?? 50;
-      const rows = await getHistory(this.env.DB, message.agentId, limit);
+      const rows = await getHistory(this.env.DB, message.agentId, limit, message.before);
 
       this.sendTo(senderWs, {
         id: crypto.randomUUID(),

@@ -4,12 +4,14 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { useInitialize } from '@/hooks/useInitialize';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { colors } from '@/lib/constants';
 
 export default function RootLayout() {
-  useWebSocket();
+  const ready = useInitialize();
+  useWebSocket(ready);
   useNotifications();
 
   return (

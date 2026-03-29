@@ -50,10 +50,16 @@ export function useChat(agentId: string) {
         loadMessages();
       }
     });
+    const unsub3 = relayClient.on(MessageType.HISTORY_RESPONSE, (msg) => {
+      if ('agentId' in msg && msg.agentId === agentId) {
+        loadMessages();
+      }
+    });
 
     return () => {
       unsub();
       unsub2();
+      unsub3();
     };
   }, [agentId, loadMessages]);
 

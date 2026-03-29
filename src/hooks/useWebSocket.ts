@@ -7,6 +7,7 @@ import type {
   ChatReceive,
   ChatStream,
   ChatStreamEnd,
+  HistoryResponse,
 } from '@agent-home/protocol';
 import NetInfo from '@react-native-community/netinfo';
 import { eq } from 'drizzle-orm';
@@ -19,7 +20,7 @@ import { useConnectionStore } from '@/stores/connection';
 import { useMessagesStore } from '@/stores/messages';
 import type { Agent } from '@/types';
 
-export function useWebSocket() {
+export function useWebSocket(ready: boolean = false) {
   const { relayUrl, token, setStatus } = useConnectionStore();
   const { setAgents, updateStatus } = useAgentsStore();
   const { appendToken, finalizeMessage } = useMessagesStore();
@@ -27,7 +28,7 @@ export function useWebSocket() {
   const wasDisconnectedRef = useRef(false);
 
   useEffect(() => {
-    if (!token || connectedRef.current) return;
+    if (!ready || !token || connectedRef.current) return;
     connectedRef.current = true;
 
     setStatus('connecting');
@@ -85,6 +86,15 @@ export function useWebSocket() {
       updateStatus(agentId, status);
 
       db.update(schema.agents).set({ status }).where(eq(schema.agents.id, agentId)).run();
+
+      // If this is a new online agent not yet in the store, request the full agent list
+      if (status === 'online' && !useAgentsStore.getState().agents.has(agentId)) {
+        relayClient.send({
+          id: nanoid(),
+          type: MessageType.AGENT_LIST,
+          timestamp: Date.now(),
+        });
+      }
     });
 
     // --- Streaming tokens ---
@@ -128,6 +138,24 @@ export function useWebSocket() {
         .run();
     });
 
+    // --- History response ---
+    const unsubHistory = relayClient.on(MessageType.HISTORY_RESPONSE, (msg) => {
+      const { agentId, messages: historyMessages } = msg as HistoryResponse;
+      for (const m of historyMessages) {
+        db.insert(schema.messages)
+          .values({
+            id: m.id,
+            agentId,
+            role: m.role,
+            content: m.content,
+            streaming: 0,
+            createdAt: m.createdAt,
+          })
+          .onConflictDoNothing()
+          .run();
+      }
+    });
+
     // --- Error handling ---
     const unsubError = relayClient.on(MessageType.ERROR, (msg) => {
       if ('message' in msg) {
@@ -156,6 +184,7 @@ export function useWebSocket() {
       unsubStream();
       unsubStreamEnd();
       unsubReceive();
+      unsubHistory();
       unsubError();
       unsubNetInfo();
       relayClient.disconnect();
@@ -163,7 +192,7 @@ export function useWebSocket() {
       setStatus('disconnected');
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- store selectors are stable refs
-  }, [token, relayUrl]);
+  }, [ready, token, relayUrl]);
 }
 
 /** Request recent history for all known agents after reconnect */

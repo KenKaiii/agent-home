@@ -18,7 +18,17 @@ export async function getHistory(
   db: D1Database,
   agentId: string,
   limit: number = 50,
+  before?: number,
 ): Promise<{ id: string; role: string; content: string; created_at: number }[]> {
+  if (before) {
+    const result = await db
+      .prepare(
+        'SELECT id, role, content, created_at FROM messages WHERE agent_id = ? AND created_at < ? ORDER BY created_at DESC LIMIT ?',
+      )
+      .bind(agentId, before, limit)
+      .all<{ id: string; role: string; content: string; created_at: number }>();
+    return result.results.reverse();
+  }
   const result = await db
     .prepare(
       'SELECT id, role, content, created_at FROM messages WHERE agent_id = ? ORDER BY created_at DESC LIMIT ?',

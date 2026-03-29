@@ -35,8 +35,9 @@ app.post('/auth/token', async (c) => {
 app.get('/agents', async (c) => {
   const id = c.env.RELAY_ROOM.idFromName('relay');
   const stub = c.env.RELAY_ROOM.get(id);
-  const room = stub as unknown as { getAgentList(): unknown[] };
-  return c.json({ agents: room.getAgentList() });
+  const res = await stub.fetch(new Request('http://internal/agents'));
+  const data = await res.json();
+  return c.json(data);
 });
 
 // Register device push token
