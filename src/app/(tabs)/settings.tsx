@@ -3,12 +3,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 
 import { router } from 'expo-router';
 
-import {
-  Cancel01Icon,
-  ComputerDesk01Icon,
-  QrCodeIcon,
-  ServerStack01Icon,
-} from '@hugeicons/core-free-icons';
+import { Cancel01Icon, ComputerDesk01Icon, ServerStack01Icon } from '@hugeicons/core-free-icons';
 import { HugeiconsIcon } from '@hugeicons/react-native';
 
 import { colors, fontSize, spacing } from '@/lib/constants';
@@ -65,7 +60,7 @@ function DeviceIcon({ platform }: { platform: string | null }) {
 }
 
 export default function SettingsScreen() {
-  const { status, relayUrl, token } = useConnectionStore();
+  const { relayUrl, token } = useConnectionStore();
   const [devices, setDevices] = useState<ConnectedDevice[]>([]);
 
   useEffect(() => {
@@ -106,35 +101,20 @@ export default function SettingsScreen() {
     ]);
   };
 
-  const statusColor =
-    status === 'connected' ? colors.green : status === 'connecting' ? colors.yellow : colors.red;
-  const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
-
   return (
     <ScrollView style={styles.container}>
       <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Relay Server</Text>
-          <View style={[styles.badge, { backgroundColor: statusColor + '22' }]}>
-            <View style={[styles.badgeDot, { backgroundColor: statusColor }]} />
-            <Text style={[styles.badgeText, { color: statusColor }]}>{statusLabel}</Text>
-          </View>
-        </View>
-
         <Pressable
           style={({ pressed }) => [styles.qrButton, pressed && styles.buttonPressed]}
           onPress={() => router.push('/scan')}
         >
-          <View style={styles.qrButtonContent}>
-            <HugeiconsIcon icon={QrCodeIcon} size={20} color="#ffffff" />
-            <Text style={styles.qrButtonText}>Scan QR Code</Text>
-          </View>
+          <Text style={styles.qrButtonText}>+ Link an app</Text>
         </Pressable>
       </View>
 
       {devices.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Connected Hosts</Text>
+          <Text style={styles.sectionTitle}>Linked Apps</Text>
           {devices.map((device) => (
             <View key={device.id} style={styles.deviceRow}>
               <View style={styles.deviceIconContainer}>
@@ -177,49 +157,21 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.lg,
-  },
   sectionTitle: {
     color: colors.text,
     fontSize: fontSize.xl,
     fontWeight: 'bold',
   },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  badgeDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-  },
-  badgeText: {
-    fontSize: fontSize.sm,
-    fontWeight: '600',
-  },
   qrButton: {
-    backgroundColor: colors.accent,
-    borderRadius: 8,
+    backgroundColor: colors.green,
+    borderRadius: 14,
     padding: spacing.lg,
     alignItems: 'center',
   },
-  qrButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
   qrButtonText: {
-    color: '#ffffff',
+    color: '#000000',
     fontSize: fontSize.lg,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   buttonPressed: {
     opacity: 0.8,
