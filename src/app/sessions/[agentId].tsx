@@ -1,13 +1,15 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 
+import { MessageType } from '@agent-home/protocol';
 import { Add01Icon } from '@hugeicons/core-free-icons';
 import { HugeiconsIcon } from '@hugeicons/react-native';
 
 import { BlurHeader } from '@/components/BlurHeader';
 import { colors, fontSize, spacing } from '@/lib/constants';
+import { relayClient } from '@/lib/websocket';
 import { useAgentsStore } from '@/stores/agents';
 import type { AgentSession } from '@/types';
 
@@ -43,6 +45,19 @@ export default function SessionsScreen() {
   const { agentId } = useLocalSearchParams<{ agentId: string }>();
   const router = useRouter();
   const agent = useAgentsStore((s) => s.agents.get(agentId ?? ''));
+
+  // Refresh agent list (including sessions) every time this screen gains focus
+  useFocusEffect(
+    useCallback(() => {
+      if (relayClient.isConnected) {
+        relayClient.send({
+          id: `focus-${Date.now()}`,
+          type: MessageType.AGENT_LIST,
+          timestamp: Date.now(),
+        });
+      }
+    }, []),
+  );
 
   const sessions = useMemo(() => {
     if (!agent?.sessions) return [];

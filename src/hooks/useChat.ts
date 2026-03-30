@@ -86,6 +86,12 @@ export function useChat(agentId: string, sessionId?: string, isNewChat: boolean 
             .run();
         }
         setActiveSessionId(streamEnd.sessionId);
+        // Refresh agent list so the sessions screen has the latest data
+        relayClient.send({
+          id: `session-adopted-${Date.now()}`,
+          type: MessageType.AGENT_LIST,
+          timestamp: Date.now(),
+        });
         return; // state change will trigger reload via the effect
       }
 
@@ -109,6 +115,12 @@ export function useChat(agentId: string, sessionId?: string, isNewChat: boolean 
             .run();
         }
         setActiveSessionId(receive.sessionId);
+        // Refresh agent list so the sessions screen has the latest data
+        relayClient.send({
+          id: `session-adopted-${Date.now()}`,
+          type: MessageType.AGENT_LIST,
+          timestamp: Date.now(),
+        });
         return;
       }
 

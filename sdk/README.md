@@ -286,6 +286,16 @@ client.onConnect(() => {
 client.connect();
 ```
 
+#### Real-Time Sync
+
+Agent Home keeps sessions in sync between your agent and all connected iOS apps:
+
+- **`updateSessions()` is a full replacement** — always send the complete list of sessions, not a delta. Any session omitted from the list will be removed from Agent Home.
+- **Call it after every change** — whether you create, delete, or rename a session, call `updateSessions()` immediately so the iOS app reflects the change.
+- **Agent Home refreshes on screen focus** — the sessions screen requests fresh data from the relay every time it gains focus, so even if a real-time update was missed, navigating to the screen will recover.
+- **New session creation triggers a refresh** — when a new chat adopts a `sessionId` from the agent's response, Agent Home automatically requests the latest agent list from the relay.
+- **The relay broadcasts to all connected apps** — when you call `updateSessions()`, the relay stores the list and broadcasts it to every connected iOS app in real-time via WebSocket.
+
 #### Key rules
 
 - **Always call `updateSessions()` after any change** — creating, renaming, or deleting sessions. Agent Home replaces its entire session list each time.
