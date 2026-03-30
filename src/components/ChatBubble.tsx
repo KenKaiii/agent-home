@@ -17,7 +17,7 @@ LogBox.ignoreLogs(['A props object containing a "key" prop is being spread into 
 
 const markdownStyles = StyleSheet.create({
   // Base
-  body: { color: colors.text, fontSize: fontSize.md },
+  body: { color: colors.text, fontSize: fontSize.lg },
   paragraph: {
     marginTop: spacing.sm,
     marginBottom: spacing.sm,
@@ -55,7 +55,7 @@ const markdownStyles = StyleSheet.create({
   },
   heading4: {
     color: colors.text,
-    fontSize: fontSize.md,
+    fontSize: fontSize.lg,
     fontWeight: 'bold',
     marginTop: spacing.md,
     marginBottom: spacing.xs,
@@ -63,7 +63,7 @@ const markdownStyles = StyleSheet.create({
   },
   heading5: {
     color: colors.textSecondary,
-    fontSize: fontSize.md,
+    fontSize: fontSize.lg,
     fontWeight: 'bold',
     marginTop: spacing.sm,
     marginBottom: spacing.xs,
@@ -105,7 +105,7 @@ const markdownStyles = StyleSheet.create({
     paddingVertical: 1,
     borderRadius: 4,
     fontFamily: 'monospace',
-    fontSize: fontSize.sm,
+    fontSize: fontSize.md,
   },
 
   // Code blocks — hide default style since we use a custom rule with a header
@@ -113,13 +113,13 @@ const markdownStyles = StyleSheet.create({
     backgroundColor: 'transparent',
     color: colors.text,
     fontFamily: 'monospace',
-    fontSize: fontSize.sm,
+    fontSize: fontSize.md,
   },
   fence: {
     backgroundColor: 'transparent',
     color: colors.text,
     fontFamily: 'monospace',
-    fontSize: fontSize.sm,
+    fontSize: fontSize.md,
   },
 
   // Lists
@@ -251,7 +251,7 @@ const codeBlockStyles = StyleSheet.create({
   code: {
     color: colors.text,
     fontFamily: 'monospace',
-    fontSize: fontSize.sm,
+    fontSize: fontSize.md,
     padding: spacing.md,
   },
 });
@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
   },
   userText: {
     color: '#ffffff',
-    fontSize: fontSize.md,
+    fontSize: fontSize.lg,
   },
   footer: {
     flexDirection: 'row',

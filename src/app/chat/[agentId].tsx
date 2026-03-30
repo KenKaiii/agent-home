@@ -1,11 +1,15 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
 
-import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useLocalSearchParams } from 'expo-router';
 
 import { AiBrain01Icon } from '@hugeicons/core-free-icons';
 import { HugeiconsIcon } from '@hugeicons/react-native';
+import MaskedView from '@react-native-masked-view/masked-view';
 
+import { BlurHeader } from '@/components/BlurHeader';
 import { ChatBubble } from '@/components/ChatBubble';
 import { ChatInput } from '@/components/ChatInput';
 import { ConnectionStatus } from '@/components/ConnectionStatus';
@@ -16,32 +20,10 @@ import { useConnectionStore } from '@/stores/connection';
 
 export default function ChatScreen() {
   const { agentId } = useLocalSearchParams<{ agentId: string }>();
-  const navigation = useNavigation();
   const agent = useAgentsStore((s) => s.agents.get(agentId ?? ''));
   const connectionStatus = useConnectionStore((s) => s.status);
   const { messages, sendMessage, isStreaming } = useChat(agentId ?? '');
   const listRef = useRef<FlatList>(null);
-
-  useEffect(() => {
-    navigation.setOptions({
-      title: agent?.name ?? agentId ?? 'Chat',
-      headerRight: () => (
-        <View
-          style={[
-            styles.statusDot,
-            {
-              backgroundColor:
-                agent?.status === 'online'
-                  ? colors.green
-                  : agent?.status === 'busy'
-                    ? colors.yellow
-                    : colors.red,
-            },
-          ]}
-        />
-      ),
-    });
-  }, [agent, agentId, navigation]);
 
   const isDisabled = connectionStatus !== 'connected' || agent?.status === 'offline';
 
@@ -49,7 +31,7 @@ export default function ChatScreen() {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={90}
+      keyboardVerticalOffset={0}
     >
       <ConnectionStatus />
       {messages.length === 0 ? (
@@ -76,7 +58,40 @@ export default function ChatScreen() {
           }
         />
       )}
-      <ChatInput onSend={sendMessage} disabled={isDisabled} />
+      <BlurHeader
+        title={agent?.name ?? agentId ?? 'Chat'}
+        rightElement={
+          <View
+            style={[
+              styles.statusDot,
+              {
+                backgroundColor:
+                  agent?.status === 'online'
+                    ? colors.green
+                    : agent?.status === 'busy'
+                      ? colors.yellow
+                      : colors.red,
+              },
+            ]}
+          />
+        }
+      />
+      <View style={styles.inputContainer} pointerEvents="box-none">
+        <MaskedView
+          style={styles.inputBlur}
+          pointerEvents="none"
+          maskElement={
+            <LinearGradient
+              colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,1)', 'rgba(0,0,0,1)']}
+              locations={[0, 0.15, 0.35, 1]}
+              style={StyleSheet.absoluteFill}
+            />
+          }
+        >
+          <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+        </MaskedView>
+        <ChatInput onSend={sendMessage} disabled={isDisabled} />
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -87,7 +102,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
   },
   list: {
-    paddingVertical: spacing.sm,
+    paddingTop: 100,
+    paddingBottom: 140,
   },
   emptyContainer: {
     flex: 1,
@@ -114,5 +130,15 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: fontSize.sm,
     fontStyle: 'italic',
+  },
+  inputContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingBottom: spacing.md,
+  },
+  inputBlur: {
+    ...StyleSheet.absoluteFillObject,
   },
 });

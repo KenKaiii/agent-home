@@ -30,23 +30,20 @@ export default function RootLayout() {
           <Stack.Screen
             name="app/[appId]"
             options={{
-              headerShown: true,
-              headerBackTitle: 'Back',
+              headerShown: false,
             }}
           />
           <Stack.Screen
             name="chat/[agentId]"
             options={{
-              headerShown: true,
-              headerBackTitle: 'Back',
+              headerShown: false,
             }}
           />
           <Stack.Screen
             name="scan"
             options={{
               presentation: 'modal',
-              headerShown: true,
-              headerTitle: 'Scan QR Code',
+              headerShown: false,
             }}
           />
         </Stack>

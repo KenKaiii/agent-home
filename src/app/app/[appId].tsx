@@ -1,24 +1,20 @@
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 
-import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 
 import { AiBrain01Icon } from '@hugeicons/core-free-icons';
 import { HugeiconsIcon } from '@hugeicons/react-native';
 
 import { AgentCard } from '@/components/AgentCard';
+import { BlurHeader } from '@/components/BlurHeader';
 import { colors, fontSize, spacing } from '@/lib/constants';
 import { useAgentsStore } from '@/stores/agents';
 
 export default function AppAgentsScreen() {
   const { appId } = useLocalSearchParams<{ appId: string }>();
-  const navigation = useNavigation();
   const agentsMap = useAgentsStore((s) => s.agents);
   const app = useAgentsStore((s) => s.apps.get(appId ?? ''));
-
-  useEffect(() => {
-    navigation.setOptions({ title: app?.name ?? 'App' });
-  }, [app, navigation]);
 
   const agents = useMemo(() => {
     return Array.from(agentsMap.values())
@@ -32,6 +28,7 @@ export default function AppAgentsScreen() {
 
   return (
     <View style={styles.container}>
+      <BlurHeader title={app?.name ?? 'App'} />
       {agents.length === 0 ? (
         <View style={styles.emptyContainer}>
           <HugeiconsIcon icon={AiBrain01Icon} size={48} color={colors.textSecondary} />
@@ -56,6 +53,7 @@ const styles = StyleSheet.create({
   },
   list: {
     flexGrow: 1,
+    paddingTop: 100,
   },
   emptyContainer: {
     flex: 1,

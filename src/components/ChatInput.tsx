@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { BlurView } from 'expo-blur';
+
 import { colors, fontSize, spacing } from '@/lib/constants';
 
 interface ChatInputProps {
@@ -20,51 +22,57 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
 
   return (
     <View style={styles.container}>
-      <TextInput
-        style={styles.input}
-        value={text}
-        onChangeText={setText}
-        placeholder={disabled ? 'Agent offline' : 'Message...'}
-        placeholderTextColor={colors.textSecondary}
-        multiline
-        maxLength={10000}
-        editable={!disabled}
-        onSubmitEditing={handleSend}
-        blurOnSubmit={false}
-      />
-      <Pressable
-        style={[styles.sendButton, (!text.trim() || disabled) && styles.sendButtonDisabled]}
-        onPress={handleSend}
-        disabled={!text.trim() || disabled}
-      >
-        <Text style={styles.sendText}>↑</Text>
-      </Pressable>
+      <BlurView intensity={60} tint="systemChromeMaterialDark" style={styles.inputWrapper}>
+        <TextInput
+          style={styles.input}
+          value={text}
+          onChangeText={setText}
+          placeholder={disabled ? 'Agent offline' : 'Message...'}
+          placeholderTextColor={colors.textSecondary}
+          multiline
+          maxLength={10000}
+          editable={!disabled}
+          onSubmitEditing={handleSend}
+          blurOnSubmit={false}
+          textAlignVertical="top"
+        />
+        <Pressable
+          style={[styles.sendButton, (!text.trim() || disabled) && styles.sendButtonDisabled]}
+          onPress={handleSend}
+          disabled={!text.trim() || disabled}
+        >
+          <Text style={styles.sendText}>↑</Text>
+        </Pressable>
+      </BlurView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
     padding: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.bg,
-    gap: spacing.sm,
+  },
+  inputWrapper: {
+    borderRadius: 16,
+    minHeight: 100,
+    position: 'relative',
+    overflow: 'hidden',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   input: {
     flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: 20,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md + 36 + spacing.sm,
     color: colors.text,
-    fontSize: fontSize.md,
-    maxHeight: 120,
-    minHeight: 40,
+    fontSize: fontSize.lg,
+    minHeight: 100,
   },
   sendButton: {
+    position: 'absolute',
+    bottom: spacing.sm,
+    right: spacing.sm,
     width: 36,
     height: 36,
     borderRadius: 18,

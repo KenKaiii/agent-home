@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import { Cancel01Icon, ComputerDesk01Icon, ServerStack01Icon } from '@hugeicons/core-free-icons';
 import { HugeiconsIcon } from '@hugeicons/react-native';
 
+import { BlurHeader } from '@/components/BlurHeader';
 import { colors, fontSize, spacing } from '@/lib/constants';
 import { useConnectionStore } from '@/stores/connection';
 
@@ -102,48 +103,54 @@ export default function SettingsScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.section}>
-        <Pressable
-          style={({ pressed }) => [styles.qrButton, pressed && styles.buttonPressed]}
-          onPress={() => router.push('/scan')}
-        >
-          <Text style={styles.qrButtonText}>+ Link an app</Text>
-        </Pressable>
-      </View>
-
-      {devices.length > 0 && (
+    <View style={styles.container}>
+      <BlurHeader title="Settings" showBack={false} />
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Linked Apps</Text>
-          {devices.map((device) => (
-            <View key={device.id} style={styles.deviceRow}>
-              <View style={styles.deviceIconContainer}>
-                <DeviceIcon platform={device.platform} />
-              </View>
-              <View style={styles.deviceInfo}>
-                <Text style={styles.deviceName} numberOfLines={1}>
-                  {device.device_name ?? device.id}
-                </Text>
-                <Text style={styles.deviceAppName} numberOfLines={1}>
-                  {device.app_name ?? 'Unknown App'}
-                </Text>
-                <Text style={styles.deviceMeta}>
-                  {device.platform ?? 'Unknown'} · v{device.app_version ?? '?'} · Last seen{' '}
-                  {getTimeAgo(device.updated_at ?? device.created_at)}
-                </Text>
-              </View>
-              <Pressable
-                onPress={() => handleDisconnect(device)}
-                hitSlop={8}
-                style={({ pressed }) => [styles.disconnectButton, pressed && styles.buttonPressed]}
-              >
-                <HugeiconsIcon icon={Cancel01Icon} size={16} color={colors.red} />
-              </Pressable>
-            </View>
-          ))}
+          <Pressable
+            style={({ pressed }) => [styles.qrButton, pressed && styles.buttonPressed]}
+            onPress={() => router.push('/scan')}
+          >
+            <Text style={styles.qrButtonText}>+ Link an app</Text>
+          </Pressable>
         </View>
-      )}
-    </ScrollView>
+
+        {devices.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Linked Apps</Text>
+            {devices.map((device) => (
+              <View key={device.id} style={styles.deviceRow}>
+                <View style={styles.deviceIconContainer}>
+                  <DeviceIcon platform={device.platform} />
+                </View>
+                <View style={styles.deviceInfo}>
+                  <Text style={styles.deviceName} numberOfLines={1}>
+                    {device.device_name ?? device.id}
+                  </Text>
+                  <Text style={styles.deviceAppName} numberOfLines={1}>
+                    {device.app_name ?? 'Unknown App'}
+                  </Text>
+                  <Text style={styles.deviceMeta}>
+                    {device.platform ?? 'Unknown'} · v{device.app_version ?? '?'} · Last seen{' '}
+                    {getTimeAgo(device.updated_at ?? device.created_at)}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() => handleDisconnect(device)}
+                  hitSlop={8}
+                  style={({ pressed }) => [
+                    styles.disconnectButton,
+                    pressed && styles.buttonPressed,
+                  ]}
+                >
+                  <HugeiconsIcon icon={Cancel01Icon} size={16} color={colors.red} />
+                </Pressable>
+              </View>
+            ))}
+          </View>
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -151,6 +158,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bg,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingTop: 100,
   },
   section: {
     padding: spacing.xl,

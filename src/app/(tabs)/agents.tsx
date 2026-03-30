@@ -5,6 +5,7 @@ import { ComputerDesk01Icon } from '@hugeicons/core-free-icons';
 import { HugeiconsIcon } from '@hugeicons/react-native';
 
 import { AppCard } from '@/components/AppCard';
+import { BlurHeader } from '@/components/BlurHeader';
 import { colors, fontSize, spacing } from '@/lib/constants';
 import { useAgentsStore } from '@/stores/agents';
 
@@ -19,6 +20,7 @@ export default function AgentsScreen() {
 
   return (
     <View style={styles.container}>
+      <BlurHeader title="Apps" showBack={false} />
       {apps.length === 0 ? (
         <View style={styles.emptyContainer}>
           <HugeiconsIcon icon={ComputerDesk01Icon} size={48} color={colors.textSecondary} />
@@ -44,6 +46,7 @@ const styles = StyleSheet.create({
   },
   list: {
     flexGrow: 1,
+    paddingTop: 100,
   },
   emptyContainer: {
     flex: 1,
