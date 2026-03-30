@@ -2,9 +2,6 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useRouter } from 'expo-router';
 
-import { ComputerDesk01Icon, ServerStack01Icon } from '@hugeicons/core-free-icons';
-import { HugeiconsIcon } from '@hugeicons/react-native';
-
 import { colors, fontSize, spacing } from '@/lib/constants';
 import type { ConnectedApp } from '@/types';
 
@@ -21,16 +18,12 @@ function getTimeAgo(timestamp: number): string {
 
 export function AppCard({ app }: { app: ConnectedApp }) {
   const router = useRouter();
-  const icon = app.platform === 'linux' ? ServerStack01Icon : ComputerDesk01Icon;
 
   return (
     <Pressable
       style={({ pressed }) => [styles.container, pressed && styles.pressed]}
       onPress={() => router.push(`/app/${app.id}`)}
     >
-      <View style={styles.iconContainer}>
-        <HugeiconsIcon icon={icon} size={24} color={colors.text} />
-      </View>
       <View style={styles.info}>
         <View style={styles.nameRow}>
           <Text style={styles.name} numberOfLines={1}>
@@ -62,15 +55,6 @@ const styles = StyleSheet.create({
   },
   pressed: {
     backgroundColor: colors.surfaceHover,
-  },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.md,
   },
   info: {
     flex: 1,

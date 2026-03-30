@@ -21,9 +21,10 @@ export function BlurHeader({ title, rightElement, showBack = true }: BlurHeaderP
   const headerHeight = insets.top + 44 + 30;
 
   return (
-    <View style={[styles.container, { height: headerHeight }]}>
+    <View style={[styles.container, { height: headerHeight }]} pointerEvents="box-none">
       <MaskedView
         style={StyleSheet.absoluteFill}
+        pointerEvents="none"
         maskElement={
           <LinearGradient
             colors={['rgba(0,0,0,1)', 'rgba(0,0,0,1)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0)']}
