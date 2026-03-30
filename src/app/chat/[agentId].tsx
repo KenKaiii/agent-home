@@ -100,7 +100,7 @@ export default function ChatScreen() {
         >
           <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
         </MaskedView>
-        <ChatInput onSend={sendMessage} disabled={isDisabled} />
+        <ChatInput onSend={sendMessage} disabled={isDisabled} isWorking={isWorking} />
       </View>
     </KeyboardAvoidingView>
   );

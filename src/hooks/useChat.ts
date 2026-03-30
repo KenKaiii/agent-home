@@ -78,8 +78,8 @@ export function useChat(agentId: string, sessionId?: string, isNewChat: boolean 
       if (streamEnd.agentId !== agentId) return;
       useMessagesStore.getState().clearWaiting(agentId);
 
-      // If we're a new chat waiting for a session, adopt the agent's sessionId
-      if (isNewChat && streamEnd.sessionId && !activeSessionId) {
+      // If we have no active session yet, adopt the agent's sessionId
+      if (streamEnd.sessionId && !activeSessionId) {
         // Migrate our sent messages to the new sessionId
         for (const id of sentMessageIds.current) {
           db.update(schema.messages)
@@ -109,8 +109,8 @@ export function useChat(agentId: string, sessionId?: string, isNewChat: boolean 
       if (receive.agentId !== agentId) return;
       useMessagesStore.getState().clearWaiting(agentId);
 
-      // If we're a new chat waiting for a session, adopt the agent's sessionId
-      if (isNewChat && receive.sessionId && !activeSessionId) {
+      // If we have no active session yet, adopt the agent's sessionId
+      if (receive.sessionId && !activeSessionId) {
         for (const id of sentMessageIds.current) {
           db.update(schema.messages)
             .set({ sessionId: receive.sessionId })
