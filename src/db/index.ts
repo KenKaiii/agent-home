@@ -16,6 +16,7 @@ expoDb.execSync(`
     description TEXT,
     icon TEXT,
     status TEXT NOT NULL DEFAULT 'offline',
+    last_message TEXT,
     last_message_at INTEGER
   );
 
@@ -31,6 +32,18 @@ expoDb.execSync(`
   CREATE INDEX IF NOT EXISTS idx_messages_agent_id ON messages(agent_id);
   CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
 `);
+
+// Additive migrations for existing databases (ALTER TABLE ignores IF NOT EXISTS in SQLite)
+try {
+  expoDb.execSync(`ALTER TABLE agents ADD COLUMN last_message TEXT;`);
+} catch {
+  // Column already exists — safe to ignore
+}
+try {
+  expoDb.execSync(`ALTER TABLE agents ADD COLUMN last_message_at INTEGER;`);
+} catch {
+  // Column already exists — safe to ignore
+}
 
 export const db = drizzle(expoDb, { schema });
 export { schema };

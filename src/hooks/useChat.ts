@@ -2,12 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { MessageType } from '@agent-home/protocol';
 import { desc, eq } from 'drizzle-orm';
-import { nanoid } from 'nanoid/non-secure';
 
 import { db, schema } from '@/db';
 import { relayClient } from '@/lib/websocket';
 import { useMessagesStore } from '@/stores/messages';
 import type { ChatMessage } from '@/types';
+
+const nanoid = () => crypto.randomUUID();
 
 export function useChat(agentId: string) {
   const [dbMessages, setDbMessages] = useState<ChatMessage[]>([]);
@@ -73,7 +74,7 @@ export function useChat(agentId: string) {
           id: messageId,
           agentId,
           role: 'assistant',
-          content: streaming.tokens.join(''),
+          content: streaming.content,
           streaming: true,
           createdAt: Date.now(),
         });
@@ -107,9 +108,9 @@ export function useChat(agentId: string) {
         })
         .run();
 
-      // Update last message time for the agent
+      // Update last message preview and time for the agent
       db.update(schema.agents)
-        .set({ lastMessageAt: now })
+        .set({ lastMessage: text, lastMessageAt: now })
         .where(eq(schema.agents.id, agentId))
         .run();
 

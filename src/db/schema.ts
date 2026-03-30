@@ -6,6 +6,7 @@ export const agents = sqliteTable('agents', {
   description: text('description'),
   icon: text('icon'),
   status: text('status').notNull().default('offline'),
+  lastMessage: text('last_message'),
   lastMessageAt: integer('last_message_at'),
 });
 

@@ -16,8 +16,10 @@ export async function sendPushNotification(
         sound: 'default',
       }),
     });
-    const result = await response.json();
-    console.log('[push] Notification sent:', result);
+    const result = (await response.json()) as { data?: { status: string; message?: string } };
+    if (result?.data?.status === 'error') {
+      console.error('[push] Notification failed:', result.data.message);
+    }
     return result;
   } catch (err) {
     console.error('[push] Failed to send notification:', err);

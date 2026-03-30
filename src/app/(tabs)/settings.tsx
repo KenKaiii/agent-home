@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { router } from 'expo-router';
-import * as SecureStore from 'expo-secure-store';
 
 import {
   Cancel01Icon,
@@ -14,8 +13,6 @@ import { HugeiconsIcon } from '@hugeicons/react-native';
 
 import { colors, fontSize, spacing } from '@/lib/constants';
 import { useConnectionStore } from '@/stores/connection';
-
-const STORAGE_KEY_PUSH = 'push-enabled';
 
 interface ConnectedDevice {
   id: string;
@@ -68,18 +65,10 @@ function DeviceIcon({ platform }: { platform: string | null }) {
 }
 
 export default function SettingsScreen() {
-  const { status } = useConnectionStore();
-  const [pushEnabled, setPushEnabled] = useState(true);
+  const { status, relayUrl, token } = useConnectionStore();
   const [devices, setDevices] = useState<ConnectedDevice[]>([]);
 
   useEffect(() => {
-    (async () => {
-      const savedPush = await SecureStore.getItemAsync(STORAGE_KEY_PUSH);
-      if (savedPush !== null) {
-        setPushEnabled(savedPush !== 'false');
-      }
-    })();
-
     // Use mock data in dev, fetch from relay in production
     if (__DEV__) {
       setDevices(MOCK_DEVICES);
@@ -87,20 +76,31 @@ export default function SettingsScreen() {
     // TODO: In production, fetch from GET /devices with auth
   }, []);
 
-  const handlePushToggle = async (value: boolean) => {
-    setPushEnabled(value);
-    await SecureStore.setItemAsync(STORAGE_KEY_PUSH, value.toString());
-  };
-
   const handleDisconnect = (device: ConnectedDevice) => {
     Alert.alert('Disconnect Device', `Remove ${device.device_name ?? 'this device'}?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Disconnect',
         style: 'destructive',
-        onPress: () => {
+        onPress: async () => {
+          if (!__DEV__ && token) {
+            try {
+              const httpUrl = relayUrl
+                .replace('wss://', 'https://')
+                .replace('ws://', 'http://')
+                .replace(/\/ws$/, '');
+              const response = await fetch(`${httpUrl}/devices/${device.id}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              if (!response.ok) {
+                console.error('[settings] Failed to delete device:', response.status);
+              }
+            } catch (error) {
+              console.error('[settings] Failed to disconnect device:', error);
+            }
+          }
           setDevices((prev) => prev.filter((d) => d.id !== device.id));
-          // TODO: In production, call DELETE /devices/:id
         },
       },
     ]);
@@ -163,18 +163,6 @@ export default function SettingsScreen() {
           ))}
         </View>
       )}
-
-      <View style={styles.section}>
-        <View style={styles.toggleRow}>
-          <Text style={styles.toggleLabel}>Push Notifications</Text>
-          <Switch
-            value={pushEnabled}
-            onValueChange={handlePushToggle}
-            trackColor={{ false: colors.border, true: colors.accent }}
-            thumbColor={colors.text}
-          />
-        </View>
-      </View>
     </ScrollView>
   );
 }
@@ -272,14 +260,5 @@ const styles = StyleSheet.create({
   },
   disconnectButton: {
     padding: spacing.sm,
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  toggleLabel: {
-    color: colors.text,
-    fontSize: fontSize.md,
   },
 });

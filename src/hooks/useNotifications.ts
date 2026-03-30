@@ -21,7 +21,6 @@ Notifications.setNotificationHandler({
 export function useNotifications() {
   const router = useRouter();
   const { relayUrl, token } = useConnectionStore();
-  const notificationListener = useRef<EventSubscription>(null);
   const responseListener = useRef<EventSubscription>(null);
 
   useEffect(() => {
@@ -35,15 +34,8 @@ export function useNotifications() {
       }
     });
 
-    // Handle foreground notifications (just log, no system banner)
-    notificationListener.current = Notifications.addNotificationReceivedListener(() => {
-      // Foreground notification received — handled by system banner
-    });
-
     return () => {
-      notificationListener.current?.remove();
       responseListener.current?.remove();
-      notificationListener.current = null;
       responseListener.current = null;
     };
   }, [router, relayUrl, token]);

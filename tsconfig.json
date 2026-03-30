@@ -7,5 +7,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx"]
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": ["relay", "bridge", "sdk", "protocol", "node_modules", "babel.config.js"]
 }

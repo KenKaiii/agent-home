@@ -292,6 +292,7 @@ export function seedMockData() {
         description: agent.description ?? null,
         icon: null,
         status: agent.status,
+        lastMessage: agent.lastMessage ?? null,
         lastMessageAt: agent.lastMessageAt ?? null,
       })
       .onConflictDoUpdate({
@@ -300,6 +301,7 @@ export function seedMockData() {
           name: agent.name,
           description: agent.description ?? null,
           status: agent.status,
+          lastMessage: agent.lastMessage ?? null,
           lastMessageAt: agent.lastMessageAt ?? null,
         },
       })

@@ -7,9 +7,10 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "outDir": "dist",
+    "rootDir": "..",
     "paths": {
       "@agent-home/protocol": ["../protocol/src"]
     }
   },
-  "include": ["src", "../protocol/src"]
+  "include": ["src"]
 }

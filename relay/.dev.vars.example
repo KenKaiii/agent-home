@@ -1,0 +1,2 @@
+# Copy to .dev.vars and fill in real values
+JWT_SECRET=

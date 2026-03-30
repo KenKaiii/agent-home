@@ -3,6 +3,7 @@ export { AgentInfoSchema, AgentWithStatusSchema } from './agent';
 export type { AgentInfo, AgentWithStatus } from './agent';
 export {
   RelayMessageSchema,
+  AuthMessageSchema,
   ChatSendSchema,
   ChatReceiveSchema,
   ChatStreamSchema,
@@ -19,6 +20,7 @@ export {
   ErrorMessageSchema,
 } from './messages';
 export type {
+  AuthMessage,
   ChatSend,
   ChatReceive,
   ChatStream,

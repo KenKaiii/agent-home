@@ -44,16 +44,15 @@ export class StdioAgent implements AgentAdapter {
 
     this.childProcess = spawn(this.command, this.args, {
       stdio: ['pipe', 'pipe', 'pipe'],
-      shell: true,
     });
 
     // Stream stdout character-by-character
     if (this.childProcess.stdout) {
       this.childProcess.stdout.on('data', (chunk: Buffer) => {
         const text = chunk.toString();
-        // Emit each character as a token for streaming
-        for (const char of text) {
-          this.tokenCallback?.(char);
+        // Emit the whole chunk as a single token for streaming
+        if (text) {
+          this.tokenCallback?.(text);
         }
         this.responseBuffer += text;
       });
@@ -69,10 +68,15 @@ export class StdioAgent implements AgentAdapter {
     this.childProcess.on('exit', (code) => {
       console.log(`[agent:${this.id}] Process exited with code ${code}`);
       this.childProcess = null;
+      this.isProcessing = false;
     });
   }
 
   async send(message: string) {
+    if (this.isProcessing) {
+      throw new Error(`Agent ${this.id} is already processing a message`);
+    }
+
     if (!this.childProcess?.stdin) {
       this.errorCallback?.('Agent process not running');
       return;
@@ -81,29 +85,45 @@ export class StdioAgent implements AgentAdapter {
     this.responseBuffer = '';
     this.isProcessing = true;
 
-    // Write message to stdin
-    this.childProcess.stdin.write(message + '\n');
+    try {
+      // Write message to stdin
+      this.childProcess.stdin.write(message + '\n');
 
-    // Wait a bit for output to come through, then finalize
-    // This is a simplified approach - real agents may need protocol-specific handling
-    await this.waitForResponse();
+      // Wait a bit for output to come through, then finalize
+      // This is a simplified approach - real agents may need protocol-specific handling
+      await this.waitForResponse();
 
-    this.isProcessing = false;
-    if (this.responseBuffer) {
-      this.responseCallback?.(this.responseBuffer);
-      this.responseBuffer = '';
+      if (this.responseBuffer) {
+        this.responseCallback?.(this.responseBuffer);
+        this.responseBuffer = '';
+      }
+    } finally {
+      this.isProcessing = false;
     }
   }
 
   private waitForResponse(): Promise<void> {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
+      let settled = false;
+
+      const maxTimeout = setTimeout(() => {
+        if (!settled) {
+          settled = true;
+          reject(new Error('Agent response timeout after 30s'));
+        }
+      }, 30_000);
+
       let lastLength = 0;
       let stableCount = 0;
 
       const check = () => {
+        if (settled) return;
+
         if (this.responseBuffer.length === lastLength) {
           stableCount++;
           if (stableCount >= 3) {
+            settled = true;
+            clearTimeout(maxTimeout);
             resolve();
             return;
           }

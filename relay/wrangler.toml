@@ -15,11 +15,13 @@ new_classes = ["RelayRoom"]
 [[d1_databases]]
 binding = "DB"
 database_name = "relay-db"
-database_id = "2d54a759-60ec-451a-b016-f1c75d0e35c1"
+# Set this via: wrangler d1 create agent-home-db (or inject via CI)
+database_id = "SET_VIA_WRANGLER_D1_CREATE_OR_CI"
 
 # Non-secret config vars
 # [vars]
 # SOME_VAR = "value"
 
-# Secrets (set via `wrangler secret put JWT_SECRET`):
-# - JWT_SECRET
+# Secrets (must be set via `wrangler secret put <NAME>` — never commit actual values):
+# - JWT_SECRET          — signs and verifies all JWTs
+# - PROVISIONING_SECRET — guards the /auth/token endpoint (kept separate from JWT_SECRET)

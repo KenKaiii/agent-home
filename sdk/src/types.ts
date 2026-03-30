@@ -1,6 +1,9 @@
 // Inlined protocol types — no zod dependency
 
 export enum MessageType {
+  // Handshake — first message after connect, before any other message
+  AUTH = 'auth',
+
   // Client → Relay
   CHAT_SEND = 'chat.send',
   AGENT_LIST = 'agent.list',

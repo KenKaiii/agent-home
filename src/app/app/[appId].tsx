@@ -22,7 +22,7 @@ export default function AppAgentsScreen() {
 
   const agents = useMemo(() => {
     return Array.from(agentsMap.values())
-      .filter((a) => a.appId === appId)
+      .filter((a) => !appId || a.appId === appId || a.appId === '')
       .sort((a, b) => {
         if (a.status === 'online' && b.status !== 'online') return -1;
         if (a.status !== 'online' && b.status === 'online') return 1;

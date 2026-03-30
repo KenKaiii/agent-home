@@ -17,6 +17,7 @@ export class BridgeConnection {
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private agentIds: string[] = [];
   private onConnectCallback: (() => void) | null = null;
+  private authenticated = false;
 
   constructor(url: string, token: string) {
     this.url = url;
@@ -61,19 +62,42 @@ export class BridgeConnection {
 
   private doConnect() {
     this.clearTimers();
-    const sep = this.url.includes('?') ? '&' : '?';
-    this.ws = new WebSocket(`${this.url}${sep}token=${this.token}`);
+    this.ws = new WebSocket(this.url);
 
     this.ws.on('open', () => {
       console.log('[bridge] Connected to relay');
       this.reconnectAttempt = 0;
-      this.startHeartbeat();
-      this.onConnectCallback?.();
+      this.authenticated = false;
+      // AUTH must be the very first message — sent before anything else
+      this.ws!.send(
+        JSON.stringify({
+          id: nanoid(),
+          type: MessageType.AUTH,
+          timestamp: Date.now(),
+          token: this.token,
+        }),
+      );
+      // Request agent list — the response confirms auth succeeded and triggers onConnectCallback
+      this.ws!.send(
+        JSON.stringify({
+          id: nanoid(),
+          type: MessageType.AGENT_LIST,
+          timestamp: Date.now(),
+        }),
+      );
     });
 
     this.ws.on('message', (data) => {
       try {
         const message = JSON.parse(data.toString()) as RelayMessage;
+
+        // First server response after AUTH confirms authentication succeeded
+        if (!this.authenticated) {
+          this.authenticated = true;
+          this.startHeartbeat();
+          this.onConnectCallback?.();
+        }
+
         const handlers = this.handlers.get(message.type);
         if (handlers) {
           for (const handler of handlers) {

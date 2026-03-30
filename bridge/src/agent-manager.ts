@@ -105,7 +105,19 @@ export class AgentManager {
     }
 
     console.log(`[bridge] Forwarding message to ${agent.name}: ${forward.content.slice(0, 50)}...`);
-    await agent.send(forward.content);
+    try {
+      await agent.send(forward.content);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`[bridge] Failed to send to agent ${agent.id}:`, message);
+      this.connection.send({
+        id: nanoid(),
+        type: MessageType.ERROR,
+        timestamp: Date.now(),
+        code: 'AGENT_ERROR',
+        message,
+      });
+    }
   }
 
   async stopAll() {

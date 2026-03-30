@@ -17,12 +17,14 @@ import {
 import { DurableObject } from 'cloudflare:workers';
 
 import { getDevicesByType, getHistory, insertMessage } from '../db/index';
-import { authenticateUpgrade } from '../lib/auth';
 import { sendPushNotification } from '../lib/push';
+import { verifyToken } from '../lib/token';
 
 interface WebSocketAttachment {
   clientId: string;
   clientType: 'app' | 'bridge';
+  authenticated: boolean;
+  connectedAt: number;
 }
 
 interface AgentEntry extends AgentWithStatus {
@@ -38,10 +40,28 @@ interface AppEnv {
 export class RelayRoom extends DurableObject<AppEnv> {
   private agents = new Map<string, AgentEntry>();
 
+  constructor(ctx: DurableObjectState, env: AppEnv) {
+    super(ctx, env);
+    // Restore agents from storage on wakeup. All agents are marked OFFLINE because
+    // a hibernation event severs all WebSocket connections — bridges must re-register.
+    this.ctx.blockConcurrencyWhile(async () => {
+      const stored = await this.ctx.storage.get<AgentEntry[]>('agents');
+      if (stored) {
+        for (const agent of stored) {
+          this.agents.set(agent.id, { ...agent, status: AgentStatus.OFFLINE });
+        }
+      }
+    });
+  }
+
+  private async persistAgents(): Promise<void> {
+    await this.ctx.storage.put('agents', Array.from(this.agents.values()));
+  }
+
   private getWebSocketsByType(type: 'app' | 'bridge'): WebSocket[] {
     return this.ctx.getWebSockets().filter((ws) => {
       const att = ws.deserializeAttachment() as WebSocketAttachment | null;
-      return att?.clientType === type;
+      return att?.authenticated && att.clientType === type;
     });
   }
 
@@ -71,7 +91,7 @@ export class RelayRoom extends DurableObject<AppEnv> {
   private findBridgeWebSocket(bridgeId: string): WebSocket | undefined {
     return this.ctx.getWebSockets().find((ws) => {
       const att = this.getAttachment(ws);
-      return att?.clientType === 'bridge' && att.clientId === bridgeId;
+      return att?.authenticated && att.clientType === 'bridge' && att.clientId === bridgeId;
     });
   }
 
@@ -83,26 +103,37 @@ export class RelayRoom extends DurableObject<AppEnv> {
     // Internal agent list request (from REST endpoint)
     const url = new URL(request.url);
     if (url.pathname === '/agents') {
+      const authHeader = request.headers.get('Authorization');
+      const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+      const payload = token ? await verifyToken(token, this.env.JWT_SECRET) : null;
+      if (!payload) return new Response('Unauthorized', { status: 401 });
       return Response.json({ agents: this.getAgentList() });
-    }
-
-    const payload = await authenticateUpgrade(request, this.env.JWT_SECRET);
-    if (!payload) {
-      return new Response('Unauthorized', { status: 401 });
     }
 
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
 
+    // Accept tentatively — auth happens on the first message
     const attachment: WebSocketAttachment = {
-      clientId: payload.clientId,
-      clientType: payload.clientType,
+      clientId: '',
+      clientType: 'app', // placeholder, overwritten after successful AUTH
+      authenticated: false,
+      connectedAt: Date.now(),
     };
 
     this.ctx.acceptWebSocket(server);
     server.serializeAttachment(attachment);
 
-    console.log(`[ws] ${payload.clientType} connected: ${payload.clientId}`);
+    // Best-effort 10-second auth timeout.
+    // Note: in Durable Object hibernation the timer may not survive a sleep cycle,
+    // but it fires reliably while the DO is awake during the handshake window.
+    // The connectedAt check in webSocketMessage provides defence-in-depth.
+    setTimeout(() => {
+      const att = this.getAttachment(server);
+      if (att && !att.authenticated) {
+        server.close(4001, 'Authentication timeout');
+      }
+    }, 10_000);
 
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -111,10 +142,45 @@ export class RelayRoom extends DurableObject<AppEnv> {
     const att = this.getAttachment(ws);
     if (!att) return;
 
+    const text = typeof message === 'string' ? message : new TextDecoder().decode(message);
+
+    // ── Unauthenticated path — expect AUTH as the very first message ──────────
+    if (!att.authenticated) {
+      // Defence-in-depth: reject if the handshake window has expired
+      if (Date.now() - att.connectedAt > 10_000) {
+        ws.close(4001, 'Authentication timeout');
+        return;
+      }
+
+      try {
+        const raw = JSON.parse(text) as { type?: unknown; token?: unknown };
+        if (raw.type !== MessageType.AUTH || typeof raw.token !== 'string') {
+          ws.close(4001, 'Unauthorized');
+          return;
+        }
+
+        const payload = await verifyToken(raw.token, this.env.JWT_SECRET);
+        if (!payload) {
+          ws.close(4001, 'Unauthorized');
+          return;
+        }
+
+        // Auth successful — promote the attachment
+        att.authenticated = true;
+        att.clientId = payload.clientId;
+        att.clientType = payload.clientType;
+        ws.serializeAttachment(att);
+
+        console.log(`[ws] ${payload.clientType} connected: ${payload.clientId}`);
+      } catch {
+        ws.close(4001, 'Unauthorized');
+      }
+      return;
+    }
+
+    // ── Authenticated path ────────────────────────────────────────────────────
     try {
-      const raw = JSON.parse(
-        typeof message === 'string' ? message : new TextDecoder().decode(message),
-      );
+      const raw = JSON.parse(text);
       const result = RelayMessageSchema.safeParse(raw);
       if (!result.success) {
         console.error('[ws] Invalid message:', result.error.format());
@@ -135,7 +201,7 @@ export class RelayRoom extends DurableObject<AppEnv> {
 
   async webSocketClose(ws: WebSocket, code: number, reason: string, wasClean: boolean) {
     const att = this.getAttachment(ws);
-    if (!att) return;
+    if (!att || !att.authenticated) return; // unauthenticated socket closed, nothing to clean up
 
     console.log(`[ws] ${att.clientType} disconnected: ${att.clientId}`);
 
@@ -153,12 +219,13 @@ export class RelayRoom extends DurableObject<AppEnv> {
           });
         }
       }
+      await this.persistAgents();
     }
   }
 
   async webSocketError(ws: WebSocket, error: unknown) {
     const att = this.getAttachment(ws);
-    console.error(`[ws] Error from ${att?.clientId ?? 'unknown'}:`, error);
+    console.error(`[ws] Error from ${att?.clientId || 'unauthenticated'}:`, error);
   }
 
   private async routeMessage(
@@ -166,15 +233,59 @@ export class RelayRoom extends DurableObject<AppEnv> {
     sender: WebSocketAttachment,
     senderWs: WebSocket,
   ) {
+    // Defence-in-depth: should never be reached for unauthenticated sockets
+    if (!sender.authenticated) {
+      senderWs.close(4001, 'Unauthorized');
+      return;
+    }
+
+    const bridgeOnly = new Set<string>([
+      MessageType.AGENT_REGISTER,
+      MessageType.AGENT_UNREGISTER,
+      MessageType.AGENT_HEARTBEAT,
+      MessageType.CHAT_STREAM,
+      MessageType.CHAT_STREAM_END,
+      MessageType.CHAT_RECEIVE,
+    ]);
+    const appOnly = new Set<string>([
+      MessageType.CHAT_SEND,
+      MessageType.AGENT_LIST,
+      MessageType.HISTORY_REQUEST,
+    ]);
+
+    if (bridgeOnly.has(message.type) && sender.clientType !== 'bridge') {
+      this.sendTo(senderWs, {
+        id: crypto.randomUUID(),
+        type: MessageType.ERROR,
+        timestamp: Date.now(),
+        code: 'FORBIDDEN',
+        message: `Message type ${message.type} can only be sent by a bridge`,
+      });
+      return;
+    }
+    if (appOnly.has(message.type) && sender.clientType !== 'app') {
+      this.sendTo(senderWs, {
+        id: crypto.randomUUID(),
+        type: MessageType.ERROR,
+        timestamp: Date.now(),
+        code: 'FORBIDDEN',
+        message: `Message type ${message.type} can only be sent by an app`,
+      });
+      return;
+    }
+
     switch (message.type) {
+      case MessageType.AUTH:
+        // Re-auth after handshake is silently ignored
+        break;
       case MessageType.CHAT_SEND:
         await this.handleChatSend(message as ChatSend, sender);
         break;
       case MessageType.AGENT_REGISTER:
-        this.handleAgentRegister(message as AgentRegister, sender);
+        await this.handleAgentRegister(message as AgentRegister, sender, senderWs);
         break;
       case MessageType.AGENT_UNREGISTER:
-        this.handleAgentUnregister(message as AgentUnregister, sender);
+        await this.handleAgentUnregister(message as AgentUnregister, sender);
         break;
       case MessageType.AGENT_HEARTBEAT:
         this.handleHeartbeat(message as AgentHeartbeat, sender);
@@ -247,14 +358,33 @@ export class RelayRoom extends DurableObject<AppEnv> {
     this.sendTo(bridgeWs, forward);
   }
 
-  private handleAgentRegister(message: AgentRegister, sender: WebSocketAttachment) {
+  private async handleAgentRegister(
+    message: AgentRegister,
+    sender: WebSocketAttachment,
+    senderWs: WebSocket,
+  ): Promise<void> {
     const agentInfo = message.agent;
+
+    const existing = this.agents.get(agentInfo.id);
+    if (existing && existing.bridgeId !== sender.clientId) {
+      this.sendTo(senderWs, {
+        id: crypto.randomUUID(),
+        type: MessageType.ERROR,
+        timestamp: Date.now(),
+        code: 'AGENT_ALREADY_REGISTERED',
+        message: `Agent ${agentInfo.id} is already registered by another bridge`,
+      });
+      return;
+    }
+
     this.agents.set(agentInfo.id, {
       ...agentInfo,
       status: AgentStatus.ONLINE,
       lastSeen: Date.now(),
       bridgeId: sender.clientId,
     });
+
+    await this.persistAgents();
 
     this.broadcastToApps({
       id: crypto.randomUUID(),
@@ -265,10 +395,14 @@ export class RelayRoom extends DurableObject<AppEnv> {
     });
   }
 
-  private handleAgentUnregister(message: AgentUnregister, sender: WebSocketAttachment) {
+  private async handleAgentUnregister(
+    message: AgentUnregister,
+    sender: WebSocketAttachment,
+  ): Promise<void> {
     const agent = this.agents.get(message.agentId);
     if (agent && agent.bridgeId === sender.clientId) {
       agent.status = AgentStatus.OFFLINE;
+      await this.persistAgents();
       this.broadcastToApps({
         id: crypto.randomUUID(),
         type: MessageType.AGENT_STATUS,
@@ -279,13 +413,14 @@ export class RelayRoom extends DurableObject<AppEnv> {
     }
   }
 
-  private handleHeartbeat(message: AgentHeartbeat, sender: WebSocketAttachment) {
+  private handleHeartbeat(message: AgentHeartbeat, sender: WebSocketAttachment): void {
     for (const agentId of message.agentIds) {
       const agent = this.agents.get(agentId);
       if (agent && agent.bridgeId === sender.clientId) {
         agent.lastSeen = Date.now();
       }
     }
+    // lastSeen updates are kept in memory — persistence happens on register/unregister/disconnect
   }
 
   private handleAgentList(_message: AgentListRequest, senderWs: WebSocket) {
@@ -299,7 +434,7 @@ export class RelayRoom extends DurableObject<AppEnv> {
 
   private async handleHistoryRequest(message: HistoryRequest, senderWs: WebSocket) {
     try {
-      const limit = message.limit ?? 50;
+      const limit = Math.min(message.limit ?? 50, 200);
       const rows = await getHistory(this.env.DB, message.agentId, limit, message.before);
 
       this.sendTo(senderWs, {
@@ -350,13 +485,12 @@ export class RelayRoom extends DurableObject<AppEnv> {
       const agentName = agentData?.name ?? agentId;
       const preview = content.length > 100 ? content.slice(0, 100) + '...' : content;
 
-      for (const device of devices) {
-        if (device.push_token) {
-          await sendPushNotification(device.push_token, agentName, preview, {
-            agentId,
-          });
-        }
-      }
+      const pushDevices = devices.filter((d) => d.push_token);
+      await Promise.allSettled(
+        pushDevices.map((device) =>
+          sendPushNotification(device.push_token!, agentName, preview, { agentId }),
+        ),
+      );
     } catch (err) {
       console.error('[push] Failed to notify disconnected apps:', err);
     }

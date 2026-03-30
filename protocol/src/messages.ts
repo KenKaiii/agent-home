@@ -128,8 +128,16 @@ export const ErrorMessageSchema = BaseMessage.extend({
 });
 export type ErrorMessage = z.infer<typeof ErrorMessageSchema>;
 
+// Handshake — sent as the very first message after WebSocket connect
+export const AuthMessageSchema = BaseMessage.extend({
+  type: z.literal(MessageType.AUTH),
+  token: z.string(),
+});
+export type AuthMessage = z.infer<typeof AuthMessageSchema>;
+
 // Discriminated union of all messages
 export const RelayMessageSchema = z.discriminatedUnion('type', [
+  AuthMessageSchema,
   ChatSendSchema,
   ChatReceiveSchema,
   ChatStreamSchema,

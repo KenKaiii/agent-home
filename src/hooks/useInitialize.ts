@@ -19,20 +19,17 @@ export function useInitialize() {
       try {
         if (USE_MOCK_DATA) {
           seedMockData();
-          return;
+        } else {
+          const savedUrl = await SecureStore.getItemAsync(STORAGE_KEY_URL);
+          const savedToken = await SecureStore.getItemAsync(STORAGE_KEY_TOKEN);
+
+          if (savedUrl) setRelayUrl(savedUrl);
+          if (savedToken) setToken(savedToken);
         }
-
-        const savedUrl = await SecureStore.getItemAsync(STORAGE_KEY_URL);
-        const savedToken = await SecureStore.getItemAsync(STORAGE_KEY_TOKEN);
-
-        if (savedUrl) setRelayUrl(savedUrl);
-        if (savedToken) setToken(savedToken);
       } catch (err) {
         console.error('[init] Failed to load credentials from SecureStore:', err);
       } finally {
-        if (!USE_MOCK_DATA) {
-          setReady(true);
-        }
+        setReady(true);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only run once on mount

@@ -1,3 +1,4 @@
+import { MessageType } from './types';
 import type { BaseMessage } from './types';
 
 const HEARTBEAT_INTERVAL = 30_000;
@@ -67,13 +68,20 @@ export class Transport {
 
   private doConnect(): void {
     this.clearTimers();
-    const sep = this.url.includes('?') ? '&' : '?';
-    const wsUrl = `${this.url}${sep}token=${this.token}`;
 
-    this.ws = new WebSocket(wsUrl);
+    this.ws = new WebSocket(this.url);
 
     this.ws.addEventListener('open', () => {
       this.reconnectAttempt = 0;
+      // AUTH must be the very first message — sent before anything else
+      this.ws!.send(
+        JSON.stringify({
+          id: crypto.randomUUID(),
+          type: MessageType.AUTH,
+          timestamp: Date.now(),
+          token: this.token,
+        }),
+      );
       this.startHeartbeat();
       this.connectCallback?.();
     });

@@ -11,7 +11,6 @@ import type {
 } from '@agent-home/protocol';
 import NetInfo from '@react-native-community/netinfo';
 import { eq } from 'drizzle-orm';
-import { nanoid } from 'nanoid/non-secure';
 
 import { db, schema } from '@/db';
 import { relayClient } from '@/lib/websocket';
@@ -19,6 +18,10 @@ import { useAgentsStore } from '@/stores/agents';
 import { useConnectionStore } from '@/stores/connection';
 import { useMessagesStore } from '@/stores/messages';
 import type { Agent } from '@/types';
+
+const nanoid = () => crypto.randomUUID();
+
+const USE_MOCK_DATA = __DEV__;
 
 export function useWebSocket(ready: boolean = false) {
   const { relayUrl, token, setStatus } = useConnectionStore();
@@ -28,14 +31,15 @@ export function useWebSocket(ready: boolean = false) {
   const wasDisconnectedRef = useRef(false);
 
   useEffect(() => {
+    if (USE_MOCK_DATA) return;
     if (!ready || !token || connectedRef.current) return;
     connectedRef.current = true;
 
     setStatus('connecting');
     relayClient.connect(relayUrl, token);
 
-    // --- Connection state tracking ---
-    const unsubOpen = relayClient.on(MessageType.AGENT_LIST_RESPONSE, () => {
+    // --- Agent list + connection state tracking ---
+    const unsubAgentList = relayClient.on(MessageType.AGENT_LIST_RESPONSE, (msg) => {
       setStatus('connected');
 
       // On reconnect, request missed messages for all known agents
@@ -43,22 +47,34 @@ export function useWebSocket(ready: boolean = false) {
         wasDisconnectedRef.current = false;
         requestMissedMessages();
       }
-    });
 
-    // --- Agent list ---
-    const unsubAgentList = relayClient.on(MessageType.AGENT_LIST_RESPONSE, (msg) => {
       const { agents } = msg as AgentListResponse;
-      const mapped: Agent[] = agents.map((a) => ({
-        id: a.id,
-        appId: '',
-        name: a.name,
-        description: a.description,
-        icon: a.icon,
-        status: a.status,
-      }));
+
+      // Look up persisted lastMessage values from local DB
+      const existingRows = db.select().from(schema.agents).all();
+      const lastMessageByAgentId = new Map(
+        existingRows.map((r) => [
+          r.id,
+          { lastMessage: r.lastMessage, lastMessageAt: r.lastMessageAt },
+        ]),
+      );
+
+      const mapped: Agent[] = agents.map((a) => {
+        const persisted = lastMessageByAgentId.get(a.id);
+        return {
+          id: a.id,
+          appId: '',
+          name: a.name,
+          description: a.description,
+          icon: a.icon,
+          status: a.status,
+          lastMessage: persisted?.lastMessage ?? undefined,
+          lastMessageAt: persisted?.lastMessageAt ?? undefined,
+        };
+      });
       setAgents(mapped);
 
-      // Sync to local DB
+      // Sync to local DB (preserve lastMessage/lastMessageAt — do not overwrite)
       for (const agent of mapped) {
         db.insert(schema.agents)
           .values({
@@ -67,6 +83,8 @@ export function useWebSocket(ready: boolean = false) {
             description: agent.description ?? null,
             icon: agent.icon ?? null,
             status: agent.status,
+            lastMessage: agent.lastMessage ?? null,
+            lastMessageAt: agent.lastMessageAt ?? null,
           })
           .onConflictDoUpdate({
             target: schema.agents.id,
@@ -120,6 +138,20 @@ export function useWebSocket(ready: boolean = false) {
         })
         .onConflictDoNothing()
         .run();
+
+      db.update(schema.agents)
+        .set({ lastMessage: content, lastMessageAt: msg.timestamp })
+        .where(eq(schema.agents.id, agentId))
+        .run();
+
+      const agentForStreamEnd = useAgentsStore.getState().agents.get(agentId);
+      if (agentForStreamEnd) {
+        useAgentsStore.getState().updateAgent({
+          ...agentForStreamEnd,
+          lastMessage: content,
+          lastMessageAt: msg.timestamp,
+        });
+      }
     });
 
     // --- Complete messages ---
@@ -137,6 +169,20 @@ export function useWebSocket(ready: boolean = false) {
         })
         .onConflictDoNothing()
         .run();
+
+      db.update(schema.agents)
+        .set({ lastMessage: content, lastMessageAt: msg.timestamp })
+        .where(eq(schema.agents.id, agentId))
+        .run();
+
+      const agentForReceive = useAgentsStore.getState().agents.get(agentId);
+      if (agentForReceive) {
+        useAgentsStore.getState().updateAgent({
+          ...agentForReceive,
+          lastMessage: content,
+          lastMessageAt: msg.timestamp,
+        });
+      }
     });
 
     // --- History response ---
@@ -159,9 +205,10 @@ export function useWebSocket(ready: boolean = false) {
 
     // --- Error handling ---
     const unsubError = relayClient.on(MessageType.ERROR, (msg) => {
-      if ('message' in msg) {
-        console.error('[ws] Server error:', (msg as { message: string }).message);
-      }
+      const message =
+        'message' in msg ? (msg as { message: string }).message : 'Unknown server error';
+      console.error('[ws] Server error:', message);
+      useConnectionStore.getState().setError(message);
     });
 
     // --- NetInfo: reconnect on network recovery ---
@@ -170,7 +217,6 @@ export function useWebSocket(ready: boolean = false) {
         console.log('[ws] Network recovered, reconnecting...');
         wasDisconnectedRef.current = true;
         setStatus('connecting');
-        relayClient.disconnect();
         relayClient.connect(relayUrl, token);
       } else if (!state.isConnected) {
         wasDisconnectedRef.current = true;
@@ -179,7 +225,6 @@ export function useWebSocket(ready: boolean = false) {
     });
 
     return () => {
-      unsubOpen();
       unsubAgentList();
       unsubStatus();
       unsubStream();

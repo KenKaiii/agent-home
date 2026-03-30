@@ -62,6 +62,8 @@ async function main() {
   const shutdown = async () => {
     console.log('\n[bridge] Shutting down...');
     await manager.stopAll();
+    // Give the WebSocket send buffer time to flush before closing
+    await new Promise((resolve) => setTimeout(resolve, 500));
     connection.disconnect();
     process.exit(0);
   };

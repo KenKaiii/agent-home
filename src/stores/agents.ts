@@ -9,7 +9,6 @@ interface AgentsStore {
   setAgents: (agents: Agent[]) => void;
   setApps: (apps: ConnectedApp[]) => void;
   updateStatus: (agentId: string, status: Agent['status']) => void;
-  removeAgent: (id: string) => void;
 }
 
 export const useAgentsStore = create<AgentsStore>((set) => ({
@@ -44,12 +43,6 @@ export const useAgentsStore = create<AgentsStore>((set) => ({
       if (agent) {
         agents.set(agentId, { ...agent, status });
       }
-      return { agents };
-    }),
-  removeAgent: (id) =>
-    set((state) => {
-      const agents = new Map(state.agents);
-      agents.delete(id);
       return { agents };
     }),
 }));

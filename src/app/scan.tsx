@@ -23,14 +23,19 @@ interface QRPayload {
 }
 
 function isValidPayload(data: unknown): data is QRPayload {
-  return (
-    typeof data === 'object' &&
-    data !== null &&
-    typeof (data as QRPayload).url === 'string' &&
-    typeof (data as QRPayload).token === 'string' &&
-    (data as QRPayload).url.length > 0 &&
-    (data as QRPayload).token.length > 0
-  );
+  if (typeof data !== 'object' || data === null) return false;
+  const p = data as Record<string, unknown>;
+  if (typeof p.url !== 'string' || typeof p.token !== 'string') return false;
+
+  // Validate URL format and scheme — only WebSocket schemes allowed
+  try {
+    const parsed = new URL(p.url);
+    if (!['ws:', 'wss:'].includes(parsed.protocol)) return false;
+  } catch {
+    return false;
+  }
+
+  return true;
 }
 
 export default function ScanScreen() {
@@ -55,40 +60,72 @@ export default function ScanScreen() {
 
       Vibration.vibrate();
 
-      // Save to SecureStore
-      await SecureStore.setItemAsync(STORAGE_KEY_URL, parsed.url);
-      await SecureStore.setItemAsync(STORAGE_KEY_TOKEN, parsed.token);
+      const hostname = new URL(parsed.url).hostname;
 
-      // Update Zustand store
-      setRelayUrl(parsed.url);
-      setToken(parsed.token);
+      // Confirm with the user before sending credentials to the relay
+      Alert.alert(
+        `Connect to ${hostname}?`,
+        'Your app will pair with this relay server and send authentication credentials.',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+            onPress: () => {
+              scannedRef.current = false;
+              setProcessing(false);
+            },
+          },
+          {
+            text: 'Connect',
+            onPress: () => {
+              void (async () => {
+                try {
+                  // Save to SecureStore
+                  await SecureStore.setItemAsync(STORAGE_KEY_URL, parsed.url);
+                  await SecureStore.setItemAsync(STORAGE_KEY_TOKEN, parsed.token);
 
-      // Reconnect
-      relayClient.disconnect();
-      relayClient.connect(parsed.url, parsed.token);
+                  // Update Zustand store
+                  setRelayUrl(parsed.url);
+                  setToken(parsed.token);
 
-      // Register device metadata with relay
-      const httpUrl = parsed.url
-        .replace('ws://', 'http://')
-        .replace('wss://', 'https://')
-        .replace('/ws', '');
+                  // Reconnect
+                  relayClient.disconnect();
+                  relayClient.connect(parsed.url, parsed.token);
 
-      fetch(`${httpUrl}/devices/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${parsed.token}`,
-        },
-        body: JSON.stringify({
-          deviceName: Device.deviceName ?? Device.modelName ?? undefined,
-          platform: Platform.OS,
-          appVersion: Constants.expoConfig?.version ?? undefined,
-        }),
-      }).catch((err) => console.warn('[scan] Failed to register device metadata:', err));
+                  // Register device metadata with relay
+                  const httpUrl = parsed.url
+                    .replace('ws://', 'http://')
+                    .replace('wss://', 'https://')
+                    .replace('/ws', '');
 
-      Alert.alert('Paired!', 'Successfully connected to your bridge.', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+                  fetch(`${httpUrl}/devices/register`, {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      Authorization: `Bearer ${parsed.token}`,
+                    },
+                    body: JSON.stringify({
+                      deviceName: Device.deviceName ?? Device.modelName ?? undefined,
+                      platform: Platform.OS,
+                      appVersion: Constants.expoConfig?.version ?? undefined,
+                    }),
+                  }).catch((err) =>
+                    console.warn('[scan] Failed to register device metadata:', err),
+                  );
+
+                  Alert.alert('Paired!', 'Successfully connected to your bridge.', [
+                    { text: 'OK', onPress: () => router.back() },
+                  ]);
+                } catch {
+                  Alert.alert('Error', 'Failed to save connection details.');
+                  scannedRef.current = false;
+                  setProcessing(false);
+                }
+              })();
+            },
+          },
+        ],
+      );
     } catch {
       Alert.alert('Invalid QR Code', 'Could not parse QR code data.');
       scannedRef.current = false;

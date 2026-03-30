@@ -1,5 +1,5 @@
 import { memo, useCallback } from 'react';
-import { Linking, LogBox, Pressable, StyleSheet, Text, View } from 'react-native';
+import { LogBox, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import * as Clipboard from 'expo-clipboard';
 
@@ -257,8 +257,7 @@ const codeBlockStyles = StyleSheet.create({
 });
 
 function handleLinkPress(url: string): boolean {
-  Linking.openURL(url).catch(() => undefined);
-  return false; // prevent default behavior
+  return true; // let the library open the URL
 }
 
 function ChatBubbleInner({ message }: { message: ChatMessage }) {

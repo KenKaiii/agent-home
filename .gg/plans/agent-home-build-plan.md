@@ -124,6 +124,7 @@ agent-home/
 **Goal**: Shared types, monorepo setup, project scaffolding.
 
 #### Step 1.1: Convert to monorepo workspace structure
+
 - Add npm workspaces to root `package.json`:
   ```json
   "workspaces": ["protocol", "relay", "bridge"]
@@ -131,32 +132,34 @@ agent-home/
 - The root remains the Expo app (so Expo CLI still works from root)
 
 #### Step 1.2: Create `protocol/` package
+
 - `protocol/package.json` — name: `@agent-home/protocol`, no build step needed (TS source consumed directly)
 - `protocol/tsconfig.json`
 - `protocol/src/enums.ts`:
+
   ```typescript
   export enum MessageType {
     // Client → Relay
     CHAT_SEND = 'chat.send',
     AGENT_LIST = 'agent.list',
     HISTORY_REQUEST = 'history.request',
-    
+
     // Relay → Client
     CHAT_RECEIVE = 'chat.receive',
-    CHAT_STREAM = 'chat.stream',       // streaming token
+    CHAT_STREAM = 'chat.stream', // streaming token
     CHAT_STREAM_END = 'chat.stream.end',
     AGENT_LIST_RESPONSE = 'agent.list.response',
     AGENT_STATUS = 'agent.status',
     HISTORY_RESPONSE = 'history.response',
     ERROR = 'error',
-    
+
     // Bridge → Relay
     AGENT_REGISTER = 'agent.register',
     AGENT_UNREGISTER = 'agent.unregister',
     AGENT_HEARTBEAT = 'agent.heartbeat',
-    
+
     // Relay → Bridge
-    CHAT_FORWARD = 'chat.forward',     // forward user message to agent
+    CHAT_FORWARD = 'chat.forward', // forward user message to agent
   }
 
   export enum AgentStatus {
@@ -166,12 +169,13 @@ agent-home/
   }
 
   export enum ClientType {
-    APP = 'app',       // phone
+    APP = 'app', // phone
     BRIDGE = 'bridge', // laptop
   }
   ```
 
 - `protocol/src/messages.ts` — Zod schemas:
+
   ```typescript
   // Base envelope
   const BaseMessage = z.object({
@@ -191,8 +195,8 @@ agent-home/
   const ChatStream = BaseMessage.extend({
     type: z.literal(MessageType.CHAT_STREAM),
     agentId: z.string(),
-    token: z.string(),        // partial text chunk
-    messageId: z.string(),    // groups tokens into one message
+    token: z.string(), // partial text chunk
+    messageId: z.string(), // groups tokens into one message
   });
 
   // Agent registration
@@ -202,7 +206,7 @@ agent-home/
       id: z.string(),
       name: z.string(),
       description: z.string().optional(),
-      icon: z.string().optional(),    // emoji or URL
+      icon: z.string().optional(), // emoji or URL
       capabilities: z.array(z.string()).optional(),
     }),
   });
@@ -210,10 +214,17 @@ agent-home/
   // ... etc for all message types
   // Union discriminated type for all messages
   export const RelayMessage = z.discriminatedUnion('type', [
-    ChatSend, ChatStream, ChatStreamEnd, ChatReceive,
-    AgentRegister, AgentUnregister, AgentStatus,
-    AgentListRequest, AgentListResponse,
-    HistoryRequest, HistoryResponse,
+    ChatSend,
+    ChatStream,
+    ChatStreamEnd,
+    ChatReceive,
+    AgentRegister,
+    AgentUnregister,
+    AgentStatus,
+    AgentListRequest,
+    AgentListResponse,
+    HistoryRequest,
+    HistoryResponse,
     ErrorMessage,
   ]);
   export type RelayMessage = z.infer<typeof RelayMessage>;
@@ -223,6 +234,7 @@ agent-home/
 - `protocol/src/index.ts` — Re-export everything
 
 #### Step 1.3: Set up Expo Router in the app
+
 - Install: `expo-router`, `expo-linking`, `expo-constants`, `expo-status-bar`, `react-native-safe-area-context`, `react-native-screens`
 - Update `app.json`:
   ```json
@@ -242,11 +254,13 @@ agent-home/
 **Goal**: Working WebSocket relay that can authenticate, route messages, and persist history.
 
 #### Step 2.1: Scaffold relay package
+
 - `relay/package.json` with deps: `ws`, `hono`, `@hono/node-server`, `better-sqlite3`, `drizzle-orm`, `drizzle-kit`, `jsonwebtoken`, `nanoid`, `zod`, `dotenv`
 - `relay/tsconfig.json`
 - `relay/.env.example`: `PORT`, `JWT_SECRET`, `DATABASE_PATH`
 
 #### Step 2.2: HTTP server + WebSocket upgrade
+
 - `relay/src/server.ts`:
   - Hono app with routes:
     - `GET /health` — health check
@@ -256,6 +270,7 @@ agent-home/
   - Authenticate via `?token=` query param on WS connect
 
 #### Step 2.3: WebSocket handler + routing
+
 - `relay/src/ws/handler.ts`:
   - On connect: identify client type (app vs bridge) from token claims
   - Parse every message through `RelayMessage` zod schema
@@ -271,6 +286,7 @@ agent-home/
   - Extract `clientType`, `clientId` from token claims
 
 #### Step 2.4: Database (message persistence)
+
 - `relay/src/db/schema.ts` — Drizzle schema:
   - `agents` table: id, name, description, icon, status, bridgeId, lastSeen, createdAt
   - `messages` table: id, agentId, role (user/assistant), content, createdAt
@@ -280,12 +296,14 @@ agent-home/
 - Store last N messages per agent (configurable, default 100)
 
 #### Step 2.5: Push notification support
+
 - `relay/src/lib/push.ts`:
   - When a message arrives from an agent and the app client is disconnected:
     - Look up push token for that device
     - Send via Expo Push API (`https://exp.host/--/api/v2/push/send`)
 
 #### Step 2.6: Entry point
+
 - `relay/src/index.ts`: Load env, init DB, start Hono server, log startup info
 - Add npm scripts: `dev` (tsx watch), `build` (tsc), `start`
 
@@ -296,12 +314,14 @@ agent-home/
 **Goal**: Telegram-style chat UI with agent list, chat screen, local storage.
 
 #### Step 3.1: Install app dependencies
+
 ```
 npx expo install expo-sqlite zustand
 npm install drizzle-orm react-native-markdown-display date-fns @react-native-community/netinfo expo-secure-store
 ```
 
 #### Step 3.2: Theme + Layout
+
 - `src/lib/constants.ts` — Dark theme colors (terminal aesthetic):
   ```typescript
   export const colors = {
@@ -312,9 +332,9 @@ npm install drizzle-orm react-native-markdown-display date-fns @react-native-com
     text: '#e6edf3',
     textSecondary: '#8b949e',
     accent: '#58a6ff',
-    green: '#3fb950',    // online
-    red: '#f85149',      // offline
-    yellow: '#d29922',   // busy
+    green: '#3fb950', // online
+    red: '#f85149', // offline
+    yellow: '#d29922', // busy
   };
   ```
 - `src/app/_layout.tsx`:
@@ -324,6 +344,7 @@ npm install drizzle-orm react-native-markdown-display date-fns @react-native-com
   - Global error boundary
 
 #### Step 3.3: Local database
+
 - `src/db/schema.ts` — Drizzle tables:
   - `agents`: id, name, description, icon, status, lastMessageAt
   - `messages`: id, agentId, role, content, streaming (bool), createdAt
@@ -332,6 +353,7 @@ npm install drizzle-orm react-native-markdown-display date-fns @react-native-com
 - Use `useLiveQuery` from expo-sqlite for reactive queries
 
 #### Step 3.4: Zustand stores
+
 - `src/stores/connection.ts`:
   ```typescript
   interface ConnectionStore {
@@ -360,6 +382,7 @@ npm install drizzle-orm react-native-markdown-display date-fns @react-native-com
   ```
 
 #### Step 3.5: Agent List screen (`src/app/(tabs)/agents.tsx`)
+
 - FlatList of agents sorted by lastMessageAt
 - Each item shows: icon/emoji, name, status dot (green/yellow/red), last message preview, timestamp
 - Pull-to-refresh to re-fetch agent list
@@ -367,6 +390,7 @@ npm install drizzle-orm react-native-markdown-display date-fns @react-native-com
 - Tap → navigate to `/chat/[agentId]`
 
 #### Step 3.6: Chat screen (`src/app/chat/[agentId].tsx`)
+
 - Header: agent name + status indicator
 - FlatList (inverted) of messages
 - Each message: `ChatBubble` component
@@ -379,6 +403,7 @@ npm install drizzle-orm react-native-markdown-display date-fns @react-native-com
 - On mount: load history from local DB, request recent from relay if gaps exist
 
 #### Step 3.7: Components
+
 - `ChatBubble.tsx`: Markdown rendering for agent, plain text for user, timestamp, copy button
 - `ChatInput.tsx`: TextInput with send button, disabled state when disconnected
 - `AgentCard.tsx`: Agent list item with status dot
@@ -386,6 +411,7 @@ npm install drizzle-orm react-native-markdown-display date-fns @react-native-com
 - `StreamingText.tsx`: Renders accumulated tokens with cursor animation
 
 #### Step 3.8: Settings screen (`src/app/(tabs)/settings.tsx`)
+
 - Relay URL configuration
 - Auth token input/paste
 - Connection status display
@@ -399,6 +425,7 @@ npm install drizzle-orm react-native-markdown-display date-fns @react-native-com
 **Goal**: Connect the Expo app to the relay server in real-time.
 
 #### Step 4.1: WebSocket client singleton (`src/lib/websocket.ts`)
+
 - Class `RelayClient`:
   - `connect(url, token)` — open WS connection with auth
   - `disconnect()`
@@ -409,6 +436,7 @@ npm install drizzle-orm react-native-markdown-display date-fns @react-native-com
   - Queue messages while disconnected, flush on reconnect
 
 #### Step 4.2: useWebSocket hook (`src/hooks/useWebSocket.ts`)
+
 - Initialize RelayClient on mount
 - Wire incoming messages to zustand stores:
   - `AGENT_STATUS` → update agents store
@@ -421,6 +449,7 @@ npm install drizzle-orm react-native-markdown-display date-fns @react-native-com
 - Clean up on unmount
 
 #### Step 4.3: useChat hook (`src/hooks/useChat.ts`)
+
 - Takes `agentId`
 - Returns `{ messages, sendMessage, isStreaming }`
 - Loads messages from local DB on mount
@@ -431,6 +460,7 @@ npm install drizzle-orm react-native-markdown-display date-fns @react-native-com
 - Merges DB messages with in-flight streaming messages
 
 #### Step 4.4: useAgents hook (`src/hooks/useAgents.ts`)
+
 - Returns `{ agents, refresh }`
 - On mount: load from local DB (cached), request fresh list via WS
 - Updates reactively from zustand store when `AGENT_STATUS` arrives
@@ -442,17 +472,20 @@ npm install drizzle-orm react-native-markdown-display date-fns @react-native-com
 **Goal**: Laptop daemon that connects agents to the relay.
 
 #### Step 5.1: Scaffold bridge package
+
 - `bridge/package.json` with deps: `ws`, `execa`, `tree-kill`, `zod`, `nanoid`, `dotenv`, `chalk`
 - `bridge/tsconfig.json`
 - `bridge/.env.example`: `RELAY_URL`, `BRIDGE_TOKEN`
 
 #### Step 5.2: Connection manager (`bridge/src/connection.ts`)
+
 - Connect to relay via WS with auth token
 - Auto-reconnect with backoff
 - On connect: register all configured agents
 - Heartbeat every 30s
 
 #### Step 5.3: Agent interface (`bridge/src/agents/base.ts`)
+
 ```typescript
 export interface AgentAdapter {
   id: string;
@@ -476,6 +509,7 @@ export interface AgentAdapter {
 ```
 
 #### Step 5.4: stdio adapter (`bridge/src/agents/stdio.ts`)
+
 - For agents that communicate via stdin/stdout (like Claude Code, custom scripts)
 - Spawn process with `execa`
 - Write user messages to stdin
@@ -483,18 +517,21 @@ export interface AgentAdapter {
 - Handle process exit/restart
 
 #### Step 5.5: HTTP adapter (`bridge/src/agents/http.ts`)
+
 - For agents that expose an HTTP API
 - POST user message to agent's endpoint
 - Support SSE streaming responses
 - Health check polling
 
 #### Step 5.6: Agent manager (`bridge/src/agent-manager.ts`)
+
 - Load agent configs from config file
 - Start/stop/restart agents
 - Route incoming messages from relay to correct agent
 - Forward agent responses back to relay as `CHAT_STREAM` / `CHAT_RECEIVE`
 
 #### Step 5.7: Config file (`bridge/src/config.ts`)
+
 - Load from `~/.agent-home/config.json` or env vars:
   ```json
   {
@@ -521,6 +558,7 @@ export interface AgentAdapter {
   ```
 
 #### Step 5.8: Entry point + CLI
+
 - `bridge/src/index.ts`:
   - Load config
   - Connect to relay
@@ -535,11 +573,13 @@ export interface AgentAdapter {
 **Goal**: Get notified when an agent responds while the app is backgrounded.
 
 #### Step 6.1: Install notification deps
+
 ```
 npx expo install expo-notifications expo-device expo-constants
 ```
 
 #### Step 6.2: Notification setup hook (`src/hooks/useNotifications.ts`)
+
 - Request permissions on first launch
 - Get Expo push token
 - Send token to relay via REST endpoint (`POST /devices/register`)
@@ -547,12 +587,14 @@ npx expo install expo-notifications expo-device expo-constants
 - Handle notification tap → navigate to correct chat screen
 
 #### Step 6.3: Relay push integration
+
 - When relay receives agent response and app client is disconnected:
   - Look up device push tokens
   - Send via Expo Push API
   - Include `agentId` in notification data for deep linking
 
 #### Step 6.4: App config
+
 - Update `app.json` with notification config (icon, colors, channels)
 
 ---
@@ -560,21 +602,25 @@ npx expo install expo-notifications expo-device expo-constants
 ### Phase 7: Polish + Reliability
 
 #### Step 7.1: Reconnection handling
+
 - Show `ConnectionStatus` banner when disconnected
 - Auto-reconnect with exponential backoff
 - On reconnect: re-sync agent list, request missed messages
 
 #### Step 7.2: Message delivery guarantees
+
 - Optimistic sends with local persistence
 - Retry queue for failed sends
 - Message deduplication (by ID) on receive
 
 #### Step 7.3: Streaming UX
+
 - Token-by-token rendering with cursor animation
 - "Agent is typing..." indicator
 - Smooth scroll to bottom as tokens arrive
 
 #### Step 7.4: Error states
+
 - Agent offline → show disabled input with message
 - Relay unreachable → show reconnecting banner
 - Message send failure → show retry button on message
@@ -626,13 +672,13 @@ These are in strict dependency order:
 
 ## Risks + Mitigations
 
-| Risk | Mitigation |
-|---|---|
-| WS drops on mobile (backgrounding, network switch) | Aggressive reconnection + NetInfo listener + message queue |
-| Expo Go limitations (no push notifications) | Use development builds for push testing; local notifications work in Expo Go |
-| Agent stdout parsing varies wildly | Start with simple "line = token" approach, make adapter configurable |
-| Relay single point of failure | Relay is stateless enough to restart quickly; messages buffered in app DB |
-| expo-router migration complexity | Minimal pages needed; follow Expo's official migration guide |
+| Risk                                               | Mitigation                                                                   |
+| -------------------------------------------------- | ---------------------------------------------------------------------------- |
+| WS drops on mobile (backgrounding, network switch) | Aggressive reconnection + NetInfo listener + message queue                   |
+| Expo Go limitations (no push notifications)        | Use development builds for push testing; local notifications work in Expo Go |
+| Agent stdout parsing varies wildly                 | Start with simple "line = token" approach, make adapter configurable         |
+| Relay single point of failure                      | Relay is stateless enough to restart quickly; messages buffered in app DB    |
+| expo-router migration complexity                   | Minimal pages needed; follow Expo's official migration guide                 |
 
 ---
 

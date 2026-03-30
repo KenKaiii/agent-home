@@ -1,7 +1,7 @@
 import { ClientType } from '@agent-home/protocol';
 import { Hono } from 'hono';
 
-import { listDevices, upsertDevice } from './db/index';
+import { deleteDevice, listDevicesByType, upsertDevice } from './db/index';
 import { type TokenPayload, createToken, verifyToken } from './lib/token';
 import type { Env } from './types';
 
@@ -14,6 +14,31 @@ async function authenticateRequest(
 ): Promise<TokenPayload | null> {
   if (!authHeader?.startsWith('Bearer ')) return null;
   return verifyToken(authHeader.slice(7), secret);
+}
+
+/** Constant-time string comparison to prevent timing attacks */
+async function timingSafeEqual(a: string, b: string): Promise<boolean> {
+  const encoder = new TextEncoder();
+  const aBytes = encoder.encode(a);
+  const bBytes = encoder.encode(b);
+  if (aBytes.byteLength !== bBytes.byteLength) return false;
+  const aKey = await crypto.subtle.importKey(
+    'raw',
+    aBytes,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const sig = await crypto.subtle.sign('HMAC', aKey, bBytes);
+  const bKey = await crypto.subtle.importKey(
+    'raw',
+    bBytes,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const sig2 = await crypto.subtle.sign('HMAC', bKey, aBytes);
+  return new Uint8Array(sig).every((v, i) => v === new Uint8Array(sig2)[i]);
 }
 
 export { RelayRoom } from './durable-objects/relay-room';
@@ -42,10 +67,11 @@ app.post('/auth/pair', async (c) => {
   return c.json({ token, clientId });
 });
 
-// Generate a token (secured by shared secret in header)
+// Generate a token (secured by provisioning secret in header)
 app.post('/auth/token', async (c) => {
-  const authHeader = c.req.header('Authorization');
-  if (authHeader !== `Bearer ${c.env.JWT_SECRET}`) {
+  const authHeader = c.req.header('Authorization') ?? '';
+  const expected = `Bearer ${c.env.PROVISIONING_SECRET}`;
+  if (!(await timingSafeEqual(authHeader, expected))) {
     return c.json({ error: 'Unauthorized' }, 401);
   }
 
@@ -70,7 +96,11 @@ app.get('/agents', async (c) => {
 
   const id = c.env.RELAY_ROOM.idFromName('relay');
   const stub = c.env.RELAY_ROOM.get(id);
-  const res = await stub.fetch(new Request('http://internal/agents'));
+  const res = await stub.fetch(
+    new Request('http://internal/agents', {
+      headers: { Authorization: c.req.header('Authorization') ?? '' },
+    }),
+  );
   const data = await res.json();
   return c.json(data);
 });
@@ -113,7 +143,7 @@ app.post('/devices/register', async (c) => {
   }
 });
 
-// List all registered devices
+// List registered devices scoped to the caller's client type
 app.get('/devices', async (c) => {
   const payload = await authenticateRequest(c.req.header('Authorization'), c.env.JWT_SECRET);
   if (!payload) {
@@ -121,12 +151,35 @@ app.get('/devices', async (c) => {
   }
 
   try {
-    const devices = await listDevices(c.env.DB);
+    const devices = await listDevicesByType(c.env.DB, payload.clientType);
     return c.json({
       devices: devices.map(({ push_token: _, ...d }) => d),
     });
   } catch (err) {
     console.error('[relay] Failed to list devices:', err);
+    return c.json({ error: 'Internal error' }, 500);
+  }
+});
+
+// Delete a registered device (only the owning client can delete)
+app.delete('/devices/:id', async (c) => {
+  const payload = await authenticateRequest(c.req.header('Authorization'), c.env.JWT_SECRET);
+  if (!payload) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  const deviceId = c.req.param('id');
+
+  // Ownership check — clients can only delete their own device registration
+  if (deviceId !== payload.clientId) {
+    return c.json({ error: 'Forbidden: can only delete your own device' }, 403);
+  }
+
+  try {
+    await deleteDevice(c.env.DB, deviceId);
+    return c.json({ success: true });
+  } catch (err) {
+    console.error('[relay] Failed to delete device:', err);
     return c.json({ error: 'Internal error' }, 500);
   }
 });

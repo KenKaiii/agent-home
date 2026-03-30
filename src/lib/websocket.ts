@@ -1,7 +1,8 @@
 import { MessageType, type RelayMessage } from '@agent-home/protocol';
-import { nanoid } from 'nanoid/non-secure';
 
 import { HEARTBEAT_INTERVAL, HEARTBEAT_TIMEOUT, RECONNECT_INTERVALS } from './config';
+
+const nanoid = () => crypto.randomUUID();
 
 type MessageHandler = (message: RelayMessage) => void;
 
@@ -15,6 +16,7 @@ export class RelayClient {
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private heartbeatTimeoutTimer: ReturnType<typeof setTimeout> | null = null;
   private sendQueue: string[] = [];
+  private readonly MAX_QUEUE_SIZE = 50;
   private _isConnected = false;
 
   get isConnected() {
@@ -30,6 +32,11 @@ export class RelayClient {
   disconnect() {
     this.clearTimers();
     if (this.ws) {
+      // Nullify handlers before closing to prevent stale onclose → scheduleReconnect
+      this.ws.onopen = null;
+      this.ws.onmessage = null;
+      this.ws.onclose = null;
+      this.ws.onerror = null;
       this.ws.close();
       this.ws = null;
     }
@@ -41,7 +48,10 @@ export class RelayClient {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(data);
     } else {
-      this.sendQueue.push(data);
+      if (this.sendQueue.length < this.MAX_QUEUE_SIZE) {
+        this.sendQueue.push(data);
+      }
+      // Silently drop if queue is full — stale messages aren't worth sending
     }
   }
 
@@ -55,35 +65,48 @@ export class RelayClient {
     };
   }
 
-  onAny(handler: MessageHandler) {
-    return this.on('*', handler);
-  }
-
   private doConnect() {
     this.clearTimers();
 
-    const separator = this.url.includes('?') ? '&' : '?';
-    const wsUrl = `${this.url}${separator}token=${this.token}`;
+    // Clean up existing socket to prevent stale onclose handlers
+    if (this.ws) {
+      this.ws.onopen = null;
+      this.ws.onmessage = null;
+      this.ws.onclose = null;
+      this.ws.onerror = null;
+      this.ws.close();
+      this.ws = null;
+    }
 
     if (this.reconnectAttempt === 0) {
       console.log('[ws] Connecting to:', this.url);
     }
 
-    this.ws = new WebSocket(wsUrl);
+    this.ws = new WebSocket(this.url);
 
     this.ws.onopen = () => {
       console.log('[ws] Connected to relay');
       this._isConnected = true;
       this.reconnectAttempt = 0;
+      // AUTH must be the very first message — sent before anything else
+      this.ws!.send(
+        JSON.stringify({
+          id: nanoid(),
+          type: MessageType.AUTH,
+          timestamp: Date.now(),
+          token: this.token,
+        }),
+      );
       this.flushQueue();
       this.startHeartbeat();
       // Request agent list from server
-      const agentListReq = {
-        id: nanoid(),
-        type: MessageType.AGENT_LIST,
-        timestamp: Date.now(),
-      };
-      this.ws!.send(JSON.stringify(agentListReq));
+      this.ws!.send(
+        JSON.stringify({
+          id: nanoid(),
+          type: MessageType.AGENT_LIST,
+          timestamp: Date.now(),
+        }),
+      );
     };
 
     this.ws.onmessage = (event) => {

@@ -1,7 +1,9 @@
 # Relay Server → Cloudflare Workers + Durable Objects + D1
 
 ## Overview
+
 Rewrite the relay server from a Node.js process (Hono + ws + better-sqlite3) to a Cloudflare Workers deployment using:
+
 - **Hono** on Workers (already supports CF natively)
 - **Durable Objects** with WebSocket Hibernation for WS state management
 - **D1** for SQLite persistence (messages, agents, devices)
@@ -22,22 +24,22 @@ WebSocket upgrades are forwarded to a single Durable Object instance (`RelayRoom
 
 ## Current Files to Change
 
-| Current File | Action | New File |
-|---|---|---|
-| `relay/package.json` | Rewrite — remove node deps, add CF deps | `relay/package.json` |
-| `relay/tsconfig.json` | Update for CF Workers types | `relay/tsconfig.json` |
-| `relay/src/index.ts` | Delete — Workers use default export | — |
-| `relay/src/server.ts` | Rewrite — Hono on Workers + DO routing | `relay/src/index.ts` |
-| `relay/src/ws/handler.ts` | Delete — merged into DO class | — |
-| `relay/src/ws/router.ts` | Rewrite — becomes methods on DO class | `relay/src/durable-objects/relay-room.ts` |
-| `relay/src/ws/auth.ts` | Adapt — CF Request instead of Node IncomingMessage | `relay/src/lib/auth.ts` |
-| `relay/src/db/index.ts` | Rewrite — D1 prepared statements | `relay/src/db/index.ts` |
-| `relay/src/db/schema.ts` | Convert to D1 migration SQL file | `relay/migrations/0001_init.sql` |
-| `relay/src/lib/token.ts` | Rewrite — `jose` instead of `jsonwebtoken` | `relay/src/lib/token.ts` |
-| `relay/src/lib/push.ts` | Keep as-is (uses standard fetch) | `relay/src/lib/push.ts` |
-| `relay/.env` | Delete — use wrangler secrets | — |
-| `relay/.env.example` | Delete | — |
-| — | New — wrangler config | `relay/wrangler.toml` |
+| Current File              | Action                                             | New File                                  |
+| ------------------------- | -------------------------------------------------- | ----------------------------------------- |
+| `relay/package.json`      | Rewrite — remove node deps, add CF deps            | `relay/package.json`                      |
+| `relay/tsconfig.json`     | Update for CF Workers types                        | `relay/tsconfig.json`                     |
+| `relay/src/index.ts`      | Delete — Workers use default export                | —                                         |
+| `relay/src/server.ts`     | Rewrite — Hono on Workers + DO routing             | `relay/src/index.ts`                      |
+| `relay/src/ws/handler.ts` | Delete — merged into DO class                      | —                                         |
+| `relay/src/ws/router.ts`  | Rewrite — becomes methods on DO class              | `relay/src/durable-objects/relay-room.ts` |
+| `relay/src/ws/auth.ts`    | Adapt — CF Request instead of Node IncomingMessage | `relay/src/lib/auth.ts`                   |
+| `relay/src/db/index.ts`   | Rewrite — D1 prepared statements                   | `relay/src/db/index.ts`                   |
+| `relay/src/db/schema.ts`  | Convert to D1 migration SQL file                   | `relay/migrations/0001_init.sql`          |
+| `relay/src/lib/token.ts`  | Rewrite — `jose` instead of `jsonwebtoken`         | `relay/src/lib/token.ts`                  |
+| `relay/src/lib/push.ts`   | Keep as-is (uses standard fetch)                   | `relay/src/lib/push.ts`                   |
+| `relay/.env`              | Delete — use wrangler secrets                      | —                                         |
+| `relay/.env.example`      | Delete                                             | —                                         |
+| —                         | New — wrangler config                              | `relay/wrangler.toml`                     |
 
 ## Final File Structure
 

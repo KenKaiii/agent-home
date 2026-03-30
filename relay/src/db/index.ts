@@ -99,6 +99,43 @@ export async function listDevices(db: D1Database): Promise<
   return result.results;
 }
 
+export async function listDevicesByType(
+  db: D1Database,
+  clientType: string,
+): Promise<
+  {
+    id: string;
+    push_token: string | null;
+    client_type: string;
+    device_name: string | null;
+    platform: string | null;
+    app_version: string | null;
+    created_at: number;
+    updated_at: number | null;
+  }[]
+> {
+  const result = await db
+    .prepare(
+      'SELECT id, push_token, client_type, device_name, platform, app_version, created_at, updated_at FROM devices WHERE client_type = ? ORDER BY created_at DESC',
+    )
+    .bind(clientType)
+    .all<{
+      id: string;
+      push_token: string | null;
+      client_type: string;
+      device_name: string | null;
+      platform: string | null;
+      app_version: string | null;
+      created_at: number;
+      updated_at: number | null;
+    }>();
+  return result.results;
+}
+
+export async function deleteDevice(db: D1Database, deviceId: string): Promise<void> {
+  await db.prepare('DELETE FROM devices WHERE id = ?').bind(deviceId).run();
+}
+
 export async function getDevicesByType(
   db: D1Database,
   clientType: string,
