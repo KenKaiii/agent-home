@@ -43,6 +43,26 @@ export async function getHistory(
   return result.results.reverse();
 }
 
+/**
+ * Migrate specific user messages (sent without a sessionId in a new chat)
+ * to the given session once the agent's first response establishes one.
+ */
+export async function adoptOrphanedUserMessages(
+  db: D1Database,
+  agentId: string,
+  sessionId: string,
+  messageIds: string[],
+) {
+  if (messageIds.length === 0) return;
+  const placeholders = messageIds.map(() => '?').join(', ');
+  await db
+    .prepare(
+      `UPDATE messages SET session_id = ? WHERE agent_id = ? AND session_id IS NULL AND id IN (${placeholders})`,
+    )
+    .bind(sessionId, agentId, ...messageIds)
+    .run();
+}
+
 export async function upsertDevice(
   db: D1Database,
   id: string,

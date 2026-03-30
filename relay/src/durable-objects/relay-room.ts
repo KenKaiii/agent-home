@@ -19,7 +19,12 @@ import {
 } from '@agent-home/protocol';
 import { DurableObject } from 'cloudflare:workers';
 
-import { getDevicesByType, getHistory, insertMessage } from '../db/index';
+import {
+  adoptOrphanedUserMessages,
+  getDevicesByType,
+  getHistory,
+  insertMessage,
+} from '../db/index';
 import { sendPushNotification } from '../lib/push';
 import { verifyToken } from '../lib/token';
 
@@ -44,6 +49,8 @@ interface AppEnv {
 export class RelayRoom extends DurableObject<AppEnv> {
   private agents = new Map<string, AgentEntry>();
   private logs: string[] = [];
+  /** Tracks user message IDs sent without a sessionId, keyed by agentId */
+  private pendingUserMessages = new Map<string, Set<string>>();
 
   private log(msg: string) {
     const entry = `${new Date().toISOString()} ${msg}`;
@@ -407,6 +414,17 @@ export class RelayRoom extends DurableObject<AppEnv> {
         message.timestamp,
         message.sessionId,
       );
+
+      // Track messages sent without a sessionId so we can adopt them
+      // once the agent's response establishes a session
+      if (!message.sessionId) {
+        let pending = this.pendingUserMessages.get(message.agentId);
+        if (!pending) {
+          pending = new Set();
+          this.pendingUserMessages.set(message.agentId, pending);
+        }
+        pending.add(message.id);
+      }
     } catch (err) {
       console.error('[db] Failed to persist user message:', err);
     }
@@ -579,6 +597,18 @@ export class RelayRoom extends DurableObject<AppEnv> {
         message.timestamp,
         message.sessionId,
       );
+
+      // Migrate tracked user messages (sent without a sessionId in a new chat)
+      // to this session now that the agent's response has established one
+      if (message.sessionId) {
+        const pending = this.pendingUserMessages.get(message.agentId);
+        if (pending && pending.size > 0) {
+          await adoptOrphanedUserMessages(this.env.DB, message.agentId, message.sessionId, [
+            ...pending,
+          ]);
+          this.pendingUserMessages.delete(message.agentId);
+        }
+      }
     } catch (err) {
       console.error('[db] Failed to persist assistant message:', err);
     }
