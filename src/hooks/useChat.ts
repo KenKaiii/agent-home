@@ -18,6 +18,7 @@ export function useChat(agentId: string, sessionId?: string, isNewChat: boolean 
   const [activeSessionId, setActiveSessionId] = useState<string | undefined>(sessionId);
   const sentMessageIds = useRef<Set<string>>(new Set());
   const streamingMessages = useMessagesStore((s) => s.streamingMessages);
+  const waitingAgents = useMessagesStore((s) => s.waitingAgents);
 
   // Sync activeSessionId if sessionId prop changes (navigating between sessions)
   useEffect(() => {
@@ -75,6 +76,7 @@ export function useChat(agentId: string, sessionId?: string, isNewChat: boolean 
     const unsub = relayClient.on(MessageType.CHAT_STREAM_END, (msg) => {
       const streamEnd = msg as ChatStreamEnd;
       if (streamEnd.agentId !== agentId) return;
+      useMessagesStore.getState().clearWaiting(agentId);
 
       // If we're a new chat waiting for a session, adopt the agent's sessionId
       if (isNewChat && streamEnd.sessionId && !activeSessionId) {
@@ -105,6 +107,7 @@ export function useChat(agentId: string, sessionId?: string, isNewChat: boolean 
     const unsub2 = relayClient.on(MessageType.CHAT_RECEIVE, (msg) => {
       const receive = msg as ChatReceive;
       if (receive.agentId !== agentId) return;
+      useMessagesStore.getState().clearWaiting(agentId);
 
       // If we're a new chat waiting for a session, adopt the agent's sessionId
       if (isNewChat && receive.sessionId && !activeSessionId) {
@@ -190,6 +193,11 @@ export function useChat(agentId: string, sessionId?: string, isNewChat: boolean 
     return false;
   }, [streamingMessages, agentId]);
 
+  const isWorking = useMemo(() => {
+    if (isStreaming) return true;
+    return waitingAgents.has(agentId);
+  }, [isStreaming, waitingAgents, agentId]);
+
   const sendMessage = useCallback(
     (text: string) => {
       const id = nanoid();
@@ -217,6 +225,9 @@ export function useChat(agentId: string, sessionId?: string, isNewChat: boolean 
         .where(eq(schema.agents.id, agentId))
         .run();
 
+      // Mark as waiting for agent response
+      useMessagesStore.getState().setWaiting(agentId);
+
       // Send via WS
       relayClient.send({
         id,
@@ -241,5 +252,5 @@ export function useChat(agentId: string, sessionId?: string, isNewChat: boolean 
     [agentId, activeSessionId, isNewChat, loadMessages],
   );
 
-  return { messages, sendMessage, isStreaming };
+  return { messages, sendMessage, isStreaming, isWorking };
 }

@@ -273,9 +273,6 @@ function ChatBubbleInner({ message }: { message: ChatMessage }) {
       <View style={[styles.container, styles.userContainer]}>
         <View style={[styles.bubble, styles.userBubble]}>
           <Text style={styles.userText}>{message.content}</Text>
-          <View style={styles.footer}>
-            <Text style={[styles.time, styles.timeUser]}>{timeStr}</Text>
-          </View>
         </View>
       </View>
     );
@@ -319,8 +316,8 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   userBubble: {
-    backgroundColor: colors.accent,
-    borderBottomRightRadius: 4,
+    backgroundColor: colors.userBubble,
+    borderBottomRightRadius: 16,
   },
   userText: {
     color: '#ffffff',

@@ -26,7 +26,7 @@ export default function ChatScreen() {
   }>();
   const agent = useAgentsStore((s) => s.agents.get(agentId ?? ''));
   const connectionStatus = useConnectionStore((s) => s.status);
-  const { messages, sendMessage, isStreaming } = useChat(
+  const { messages, sendMessage, isStreaming, isWorking } = useChat(
     agentId ?? '',
     sessionId,
     Boolean(newChat),
@@ -68,7 +68,8 @@ export default function ChatScreen() {
         />
       )}
       <BlurHeader
-        title={agent?.name ?? agentId ?? 'Chat'}
+        title={isWorking ? 'Working now' : (agent?.name ?? agentId ?? 'Chat')}
+        isWorking={isWorking}
         rightElement={
           <View
             style={[

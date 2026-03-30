@@ -1,14 +1,15 @@
 export const colors = {
-  bg: '#0d1117',
-  surface: '#161b22',
-  surfaceHover: '#1c2333',
-  border: '#30363d',
-  text: '#e6edf3',
-  textSecondary: '#8b949e',
-  accent: '#58a6ff',
-  green: '#3fb950',
-  red: '#f85149',
-  yellow: '#d29922',
+  bg: '#262624',
+  surface: '#1e1e1c',
+  surfaceHover: '#333331',
+  border: '#3a3a38',
+  text: '#ece4dc',
+  textSecondary: '#8a827a',
+  accent: '#ef8d6b',
+  green: '#7cb87a',
+  red: '#cf6660',
+  yellow: '#d4a044',
+  userBubble: '#141413',
 } as const;
 
 export const spacing = {
