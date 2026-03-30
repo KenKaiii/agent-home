@@ -1,6 +1,6 @@
 export { MessageType, AgentStatus, ClientType } from './enums';
-export { AgentInfoSchema, AgentWithStatusSchema } from './agent';
-export type { AgentInfo, AgentWithStatus } from './agent';
+export { AgentInfoSchema, AgentSessionSchema, AgentWithStatusSchema } from './agent';
+export type { AgentInfo, AgentSession, AgentWithStatus } from './agent';
 export {
   RelayMessageSchema,
   AuthMessageSchema,
@@ -18,6 +18,7 @@ export {
   AgentHeartbeatSchema,
   ChatForwardSchema,
   ErrorMessageSchema,
+  SessionsUpdateSchema,
 } from './messages';
 export type {
   AuthMessage,
@@ -35,5 +36,6 @@ export type {
   AgentHeartbeat,
   ChatForward,
   ErrorMessage,
+  SessionsUpdate,
   RelayMessage,
 } from './messages';

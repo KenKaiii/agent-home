@@ -8,6 +8,12 @@ export interface ConnectedApp {
   lastActiveAt: number;
 }
 
+export interface AgentSession {
+  id: string;
+  title: string;
+  updatedAt: number;
+}
+
 export interface Agent {
   id: string;
   appId: string;
@@ -17,6 +23,7 @@ export interface Agent {
   status: 'online' | 'offline' | 'busy';
   lastMessageAt?: number;
   lastMessage?: string;
+  sessions?: AgentSession[];
 }
 
 export interface ChatMessage {

@@ -8,6 +8,7 @@ import type {
   ChatStream,
   ChatStreamEnd,
   HistoryResponse,
+  SessionsUpdate,
 } from '@agent-home/protocol';
 import NetInfo from '@react-native-community/netinfo';
 import { eq } from 'drizzle-orm';
@@ -19,13 +20,15 @@ import { useConnectionStore } from '@/stores/connection';
 import { useMessagesStore } from '@/stores/messages';
 import type { Agent } from '@/types';
 
-const nanoid = () => crypto.randomUUID();
+/** Generate a simple unique ID without crypto dependency (Hermes doesn't have crypto.randomUUID) */
+const nanoid = () =>
+  'xxxx-xxxx-xxxx'.replace(/x/g, () => Math.floor(Math.random() * 16).toString(16));
 
-const USE_MOCK_DATA = __DEV__;
+const USE_MOCK_DATA = false;
 
 export function useWebSocket(ready: boolean = false) {
   const { relayUrl, token, setStatus } = useConnectionStore();
-  const { setAgents, updateStatus } = useAgentsStore();
+  const { setAgents, updateStatus, updateSessions } = useAgentsStore();
   const { appendToken, finalizeMessage } = useMessagesStore();
   const connectedRef = useRef(false);
   const wasDisconnectedRef = useRef(false);
@@ -63,16 +66,31 @@ export function useWebSocket(ready: boolean = false) {
         const persisted = lastMessageByAgentId.get(a.id);
         return {
           id: a.id,
-          appId: '',
+          appId: a.id,
           name: a.name,
           description: a.description,
           icon: a.icon,
           status: a.status,
           lastMessage: persisted?.lastMessage ?? undefined,
           lastMessageAt: persisted?.lastMessageAt ?? undefined,
+          sessions: a.sessions,
         };
       });
       setAgents(mapped);
+
+      // Derive connected apps from agents — each agent represents a connected app
+      const { setApps } = useAgentsStore.getState();
+      setApps(
+        agents.map((a) => ({
+          id: a.id,
+          name: a.name,
+          hostName: a.description ?? '',
+          platform: 'macos' as const,
+          appVersion: '',
+          agentCount: 1,
+          lastActiveAt: a.lastSeen ?? Date.now(),
+        })),
+      );
 
       // Sync to local DB (preserve lastMessage/lastMessageAt — do not overwrite)
       for (const agent of mapped) {
@@ -124,7 +142,8 @@ export function useWebSocket(ready: boolean = false) {
 
     // --- Stream end ---
     const unsubStreamEnd = relayClient.on(MessageType.CHAT_STREAM_END, (msg) => {
-      const { messageId, agentId, content } = msg as ChatStreamEnd;
+      const streamEnd = msg as ChatStreamEnd;
+      const { messageId, agentId, content } = streamEnd;
       finalizeMessage(messageId);
 
       db.insert(schema.messages)
@@ -135,6 +154,7 @@ export function useWebSocket(ready: boolean = false) {
           content,
           streaming: 0,
           createdAt: msg.timestamp,
+          sessionId: streamEnd.sessionId ?? null,
         })
         .onConflictDoNothing()
         .run();
@@ -156,7 +176,8 @@ export function useWebSocket(ready: boolean = false) {
 
     // --- Complete messages ---
     const unsubReceive = relayClient.on(MessageType.CHAT_RECEIVE, (msg) => {
-      const { messageId, agentId, content } = msg as ChatReceive;
+      const receive = msg as ChatReceive;
+      const { messageId, agentId, content } = receive;
 
       db.insert(schema.messages)
         .values({
@@ -166,6 +187,7 @@ export function useWebSocket(ready: boolean = false) {
           content,
           streaming: 0,
           createdAt: msg.timestamp,
+          sessionId: receive.sessionId ?? null,
         })
         .onConflictDoNothing()
         .run();
@@ -187,7 +209,8 @@ export function useWebSocket(ready: boolean = false) {
 
     // --- History response ---
     const unsubHistory = relayClient.on(MessageType.HISTORY_RESPONSE, (msg) => {
-      const { agentId, messages: historyMessages } = msg as HistoryResponse;
+      const historyResp = msg as HistoryResponse;
+      const { agentId, messages: historyMessages } = historyResp;
       for (const m of historyMessages) {
         db.insert(schema.messages)
           .values({
@@ -197,10 +220,17 @@ export function useWebSocket(ready: boolean = false) {
             content: m.content,
             streaming: 0,
             createdAt: m.createdAt,
+            sessionId: historyResp.sessionId ?? null,
           })
           .onConflictDoNothing()
           .run();
       }
+    });
+
+    // --- Sessions update ---
+    const unsubSessions = relayClient.on(MessageType.SESSIONS_UPDATE, (msg) => {
+      const { agentId, sessions } = msg as SessionsUpdate;
+      updateSessions(agentId, sessions);
     });
 
     // --- Error handling ---
@@ -231,6 +261,7 @@ export function useWebSocket(ready: boolean = false) {
       unsubStreamEnd();
       unsubReceive();
       unsubHistory();
+      unsubSessions();
       unsubError();
       unsubNetInfo();
       relayClient.disconnect();

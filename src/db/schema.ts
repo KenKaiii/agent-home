@@ -10,6 +10,13 @@ export const agents = sqliteTable('agents', {
   lastMessageAt: integer('last_message_at'),
 });
 
+export const sessions = sqliteTable('sessions', {
+  id: text('id').primaryKey(),
+  agentId: text('agent_id').notNull(),
+  title: text('title').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
+
 export const messages = sqliteTable('messages', {
   id: text('id').primaryKey(),
   agentId: text('agent_id').notNull(),
@@ -17,4 +24,5 @@ export const messages = sqliteTable('messages', {
   content: text('content').notNull(),
   streaming: integer('streaming').notNull().default(0), // boolean: 0 or 1
   createdAt: integer('created_at').notNull(),
+  sessionId: text('session_id'),
 });

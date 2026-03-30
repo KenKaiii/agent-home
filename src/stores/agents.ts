@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import type { Agent, ConnectedApp } from '@/types';
+import type { Agent, AgentSession, ConnectedApp } from '@/types';
 
 interface AgentsStore {
   agents: Map<string, Agent>;
@@ -9,6 +9,7 @@ interface AgentsStore {
   setAgents: (agents: Agent[]) => void;
   setApps: (apps: ConnectedApp[]) => void;
   updateStatus: (agentId: string, status: Agent['status']) => void;
+  updateSessions: (agentId: string, sessions: AgentSession[]) => void;
 }
 
 export const useAgentsStore = create<AgentsStore>((set) => ({
@@ -42,6 +43,15 @@ export const useAgentsStore = create<AgentsStore>((set) => ({
       const agent = agents.get(agentId);
       if (agent) {
         agents.set(agentId, { ...agent, status });
+      }
+      return { agents };
+    }),
+  updateSessions: (agentId, sessions) =>
+    set((state) => {
+      const agents = new Map(state.agents);
+      const agent = agents.get(agentId);
+      if (agent) {
+        agents.set(agentId, { ...agent, sessions });
       }
       return { agents };
     }),

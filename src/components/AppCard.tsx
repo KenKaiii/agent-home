@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { colors, fontSize, spacing } from '@/lib/constants';
+import { useAgentsStore } from '@/stores/agents';
 import type { ConnectedApp } from '@/types';
 
 function getTimeAgo(timestamp: number): string {
@@ -18,11 +19,29 @@ function getTimeAgo(timestamp: number): string {
 
 export function AppCard({ app }: { app: ConnectedApp }) {
   const router = useRouter();
+  const agents = useAgentsStore((s) => s.agents);
+
+  const handlePress = () => {
+    // If this app maps to a single agent, skip the agent list and go directly
+    const appAgents = Array.from(agents.values()).filter(
+      (a) => a.appId === app.id || a.id === app.id,
+    );
+    if (appAgents.length === 1) {
+      const agent = appAgents[0];
+      if (agent.sessions && agent.sessions.length > 0) {
+        router.push(`/sessions/${agent.id}`);
+      } else {
+        router.push(`/chat/${agent.id}`);
+      }
+    } else {
+      router.push(`/app/${app.id}`);
+    }
+  };
 
   return (
     <Pressable
       style={({ pressed }) => [styles.container, pressed && styles.pressed]}
-      onPress={() => router.push(`/app/${app.id}`)}
+      onPress={handlePress}
     >
       <View style={styles.info}>
         <View style={styles.nameRow}>

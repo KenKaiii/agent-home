@@ -5,12 +5,13 @@ export async function insertMessage(
   role: string,
   content: string,
   createdAt: number,
+  sessionId?: string,
 ) {
   await db
     .prepare(
-      'INSERT OR IGNORE INTO messages (id, agent_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)',
+      'INSERT OR IGNORE INTO messages (id, agent_id, role, content, created_at, session_id) VALUES (?, ?, ?, ?, ?, ?)',
     )
-    .bind(id, agentId, role, content, createdAt)
+    .bind(id, agentId, role, content, createdAt, sessionId ?? null)
     .run();
 }
 
@@ -19,21 +20,25 @@ export async function getHistory(
   agentId: string,
   limit: number = 50,
   before?: number,
+  sessionId?: string,
 ): Promise<{ id: string; role: string; content: string; created_at: number }[]> {
+  const sessionClause = sessionId !== undefined ? ' AND session_id = ?' : ' AND session_id IS NULL';
+  const sessionBinds = sessionId !== undefined ? [sessionId] : [];
+
   if (before) {
     const result = await db
       .prepare(
-        'SELECT id, role, content, created_at FROM messages WHERE agent_id = ? AND created_at < ? ORDER BY created_at DESC LIMIT ?',
+        `SELECT id, role, content, created_at FROM messages WHERE agent_id = ?${sessionClause} AND created_at < ? ORDER BY created_at DESC LIMIT ?`,
       )
-      .bind(agentId, before, limit)
+      .bind(agentId, ...sessionBinds, before, limit)
       .all<{ id: string; role: string; content: string; created_at: number }>();
     return result.results.reverse();
   }
   const result = await db
     .prepare(
-      'SELECT id, role, content, created_at FROM messages WHERE agent_id = ? ORDER BY created_at DESC LIMIT ?',
+      `SELECT id, role, content, created_at FROM messages WHERE agent_id = ?${sessionClause} ORDER BY created_at DESC LIMIT ?`,
     )
-    .bind(agentId, limit)
+    .bind(agentId, ...sessionBinds, limit)
     .all<{ id: string; role: string; content: string; created_at: number }>();
   return result.results.reverse();
 }

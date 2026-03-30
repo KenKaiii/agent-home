@@ -1,10 +1,12 @@
 import { Transport } from './transport';
 import {
   type AgentHomeClientOptions,
+  type AgentSession,
   type ChatForward,
   type IncomingMessage,
   MessageType,
   type ResponseStream,
+  type StreamOptions,
 } from './types';
 
 let idCounter = 0;
@@ -42,6 +44,13 @@ export class AgentHomeClient {
       agentIds: [this.options.agent.id],
     }));
 
+    // Log errors from the relay
+    this.transport.on(MessageType.ERROR, (raw) => {
+      const code = (raw as Record<string, unknown>).code ?? '';
+      const message = (raw as Record<string, unknown>).message ?? '';
+      console.error(`[agent-home] Relay error (${code}): ${message}`);
+    });
+
     // Listen for forwarded chat messages
     this.transport.on(MessageType.CHAT_FORWARD, (raw) => {
       const msg = raw as unknown as ChatForward;
@@ -50,6 +59,7 @@ export class AgentHomeClient {
           content: msg.content,
           userId: msg.userId,
           messageId: msg.id,
+          sessionId: msg.sessionId,
         };
         const stream = this.createResponseStream(msg);
         Promise.resolve(this.messageHandler(incoming, stream)).catch((err) => {
@@ -100,12 +110,25 @@ export class AgentHomeClient {
     } as any);
   }
 
+  /** Push an updated session list for this agent */
+  updateSessions(sessions: AgentSession[]): void {
+    this.transport.send({
+      id: generateId(),
+      type: MessageType.SESSIONS_UPDATE,
+      timestamp: Date.now(),
+      agentId: this.options.agent.id,
+      sessions,
+    } as any);
+  }
+
   private createResponseStream(forward: ChatForward): ResponseStream {
     const agentId = forward.agentId;
     const messageId = forward.id;
+    const defaultSessionId = forward.sessionId;
 
     return {
-      token: (text: string) => {
+      token: (text: string, options?: StreamOptions) => {
+        const sid = options?.sessionId ?? defaultSessionId;
         this.transport.send({
           id: generateId(),
           type: MessageType.CHAT_STREAM,
@@ -113,9 +136,11 @@ export class AgentHomeClient {
           agentId,
           token: text,
           messageId,
+          ...(sid ? { sessionId: sid } : {}),
         } as any);
       },
-      end: (content: string) => {
+      end: (content: string, options?: StreamOptions) => {
+        const sid = options?.sessionId ?? defaultSessionId;
         this.transport.send({
           id: generateId(),
           type: MessageType.CHAT_STREAM_END,
@@ -123,6 +148,7 @@ export class AgentHomeClient {
           agentId,
           messageId,
           content,
+          ...(sid ? { sessionId: sid } : {}),
         } as any);
       },
       error: (message: string) => {

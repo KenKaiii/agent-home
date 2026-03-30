@@ -2,17 +2,20 @@ import {
   type AgentHeartbeat,
   type AgentListRequest,
   type AgentRegister,
+  type AgentSession,
   AgentStatus,
   type AgentUnregister,
   type AgentWithStatus,
   type ChatForward,
   type ChatReceive,
   type ChatSend,
+  type ChatStream,
   type ChatStreamEnd,
   type HistoryRequest,
   MessageType,
   RelayMessageSchema,
   type RelayMessage as RelayMessageType,
+  type SessionsUpdate,
 } from '@agent-home/protocol';
 import { DurableObject } from 'cloudflare:workers';
 
@@ -29,6 +32,7 @@ interface WebSocketAttachment {
 
 interface AgentEntry extends AgentWithStatus {
   bridgeId: string;
+  sessions?: AgentSession[];
 }
 
 interface AppEnv {
@@ -39,16 +43,24 @@ interface AppEnv {
 
 export class RelayRoom extends DurableObject<AppEnv> {
   private agents = new Map<string, AgentEntry>();
+  private logs: string[] = [];
+
+  private log(msg: string) {
+    const entry = `${new Date().toISOString()} ${msg}`;
+    this.logs.push(entry);
+    if (this.logs.length > 200) this.logs.splice(0, this.logs.length - 200);
+    console.log(msg);
+  }
 
   constructor(ctx: DurableObjectState, env: AppEnv) {
     super(ctx, env);
-    // Restore agents from storage on wakeup. All agents are marked OFFLINE because
-    // a hibernation event severs all WebSocket connections — bridges must re-register.
+    // Restore agents from storage on wakeup. WebSocket connections survive hibernation
+    // (CF Hibernation API keeps sockets open), so we preserve the persisted status.
     this.ctx.blockConcurrencyWhile(async () => {
       const stored = await this.ctx.storage.get<AgentEntry[]>('agents');
       if (stored) {
         for (const agent of stored) {
-          this.agents.set(agent.id, { ...agent, status: AgentStatus.OFFLINE });
+          this.agents.set(agent.id, agent);
         }
       }
     });
@@ -100,14 +112,54 @@ export class RelayRoom extends DurableObject<AppEnv> {
   }
 
   async fetch(request: Request): Promise<Response> {
-    // Internal agent list request (from REST endpoint)
     const url = new URL(request.url);
+
+    // Internal agent list request (from REST endpoint)
     if (url.pathname === '/agents') {
       const authHeader = request.headers.get('Authorization');
       const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
       const payload = token ? await verifyToken(token, this.env.JWT_SECRET) : null;
       if (!payload) return new Response('Unauthorized', { status: 401 });
       return Response.json({ agents: this.getAgentList() });
+    }
+
+    // Logs endpoint — in-memory ring buffer of recent events
+    if (url.pathname === '/logs') {
+      return Response.json({ logs: this.logs });
+    }
+
+    // Debug endpoint — shows full relay state
+    if (url.pathname === '/debug') {
+      const allSockets = this.ctx.getWebSockets();
+      const clients = allSockets.map((ws) => {
+        const att = this.getAttachment(ws);
+        return {
+          clientId: att?.clientId ?? '(unknown)',
+          clientType: att?.clientType ?? '(unknown)',
+          authenticated: att?.authenticated ?? false,
+          connectedAt: att?.connectedAt ?? 0,
+          readyState: ws.readyState,
+        };
+      });
+
+      const agents = Array.from(this.agents.entries()).map(([id, agent]) => ({
+        id,
+        name: agent.name,
+        status: agent.status,
+        bridgeId: agent.bridgeId,
+        lastSeen: agent.lastSeen,
+      }));
+
+      return Response.json({
+        timestamp: Date.now(),
+        totalSockets: allSockets.length,
+        appClients: clients.filter((c) => c.clientType === 'app').length,
+        bridgeClients: clients.filter((c) => c.clientType === 'bridge').length,
+        unauthenticated: clients.filter((c) => !c.authenticated).length,
+        clients,
+        agents,
+        agentCount: agents.length,
+      });
     }
 
     const pair = new WebSocketPair();
@@ -246,6 +298,7 @@ export class RelayRoom extends DurableObject<AppEnv> {
       MessageType.CHAT_STREAM,
       MessageType.CHAT_STREAM_END,
       MessageType.CHAT_RECEIVE,
+      MessageType.SESSIONS_UPDATE,
     ]);
     const appOnly = new Set<string>([
       MessageType.CHAT_SEND,
@@ -297,9 +350,11 @@ export class RelayRoom extends DurableObject<AppEnv> {
         await this.handleHistoryRequest(message as HistoryRequest, senderWs);
         break;
       case MessageType.CHAT_STREAM:
+        this.log(`[chat] Stream token from bridge: ${(message as ChatStream).agentId}`);
         this.broadcastToApps(message);
         break;
       case MessageType.CHAT_STREAM_END:
+        this.log(`[chat] Stream end from bridge: ${(message as ChatStreamEnd).agentId}`);
         await this.persistAssistantMessage(message as ChatStreamEnd);
         this.broadcastToApps(message);
         await this.notifyDisconnectedApps(
@@ -308,12 +363,16 @@ export class RelayRoom extends DurableObject<AppEnv> {
         );
         break;
       case MessageType.CHAT_RECEIVE:
+        this.log(`[chat] Chat receive from bridge: ${(message as ChatReceive).agentId}`);
         await this.persistAssistantMessage(message as ChatReceive);
         this.broadcastToApps(message);
         await this.notifyDisconnectedApps(
           (message as ChatReceive).agentId,
           (message as ChatReceive).content,
         );
+        break;
+      case MessageType.SESSIONS_UPDATE:
+        await this.handleSessionsUpdate(message as SessionsUpdate, sender);
         break;
       default:
         this.sendTo(senderWs, {
@@ -328,7 +387,14 @@ export class RelayRoom extends DurableObject<AppEnv> {
 
   private async handleChatSend(message: ChatSend, sender: WebSocketAttachment) {
     const agent = this.agents.get(message.agentId);
-    if (!agent) return;
+    if (!agent) {
+      this.log(`[chat] Agent ${message.agentId} not found, dropping message`);
+      return;
+    }
+
+    this.log(
+      `[chat] ${sender.clientId} → ${message.agentId}: "${message.content.substring(0, 80)}"`,
+    );
 
     // Persist user message
     try {
@@ -339,13 +405,17 @@ export class RelayRoom extends DurableObject<AppEnv> {
         'user',
         message.content,
         message.timestamp,
+        message.sessionId,
       );
     } catch (err) {
       console.error('[db] Failed to persist user message:', err);
     }
 
     const bridgeWs = this.findBridgeWebSocket(agent.bridgeId);
-    if (!bridgeWs) return;
+    if (!bridgeWs) {
+      this.log(`[chat] Bridge ${agent.bridgeId} not found for agent ${message.agentId}`);
+      return;
+    }
 
     const forward: ChatForward = {
       id: crypto.randomUUID(),
@@ -354,7 +424,9 @@ export class RelayRoom extends DurableObject<AppEnv> {
       agentId: message.agentId,
       content: message.content,
       userId: sender.clientId,
+      ...(message.sessionId ? { sessionId: message.sessionId } : {}),
     };
+    this.log(`[chat] Forwarding to bridge ${agent.bridgeId}`);
     this.sendTo(bridgeWs, forward);
   }
 
@@ -367,14 +439,24 @@ export class RelayRoom extends DurableObject<AppEnv> {
 
     const existing = this.agents.get(agentInfo.id);
     if (existing && existing.bridgeId !== sender.clientId) {
-      this.sendTo(senderWs, {
-        id: crypto.randomUUID(),
-        type: MessageType.ERROR,
-        timestamp: Date.now(),
-        code: 'AGENT_ALREADY_REGISTERED',
-        message: `Agent ${agentInfo.id} is already registered by another bridge`,
-      });
-      return;
+      // If the existing registration is still online from a different bridge, reject
+      if (existing.status === AgentStatus.ONLINE) {
+        const oldBridge = this.findBridgeWebSocket(existing.bridgeId);
+        if (oldBridge) {
+          this.sendTo(senderWs, {
+            id: crypto.randomUUID(),
+            type: MessageType.ERROR,
+            timestamp: Date.now(),
+            code: 'AGENT_ALREADY_REGISTERED',
+            message: `Agent ${agentInfo.id} is already registered by another bridge`,
+          });
+          return;
+        }
+      }
+      // Old bridge is gone (offline/disconnected) — allow the new bridge to take over
+      console.log(
+        `[ws] Agent ${agentInfo.id} reclaimed by bridge ${sender.clientId} (was ${existing.bridgeId})`,
+      );
     }
 
     this.agents.set(agentInfo.id, {
@@ -414,13 +496,31 @@ export class RelayRoom extends DurableObject<AppEnv> {
   }
 
   private handleHeartbeat(message: AgentHeartbeat, sender: WebSocketAttachment): void {
+    let statusChanged = false;
     for (const agentId of message.agentIds) {
       const agent = this.agents.get(agentId);
       if (agent && agent.bridgeId === sender.clientId) {
         agent.lastSeen = Date.now();
+        // Heartbeat from a connected bridge means the agent is alive — restore if offline
+        if (agent.status !== AgentStatus.ONLINE) {
+          this.log(`[ws] Heartbeat reviving agent ${agentId} from ${agent.status} to online`);
+          agent.status = AgentStatus.ONLINE;
+          statusChanged = true;
+          this.broadcastToApps({
+            id: crypto.randomUUID(),
+            type: MessageType.AGENT_STATUS,
+            timestamp: Date.now(),
+            agentId,
+            status: AgentStatus.ONLINE,
+          });
+        }
       }
     }
-    // lastSeen updates are kept in memory — persistence happens on register/unregister/disconnect
+    if (statusChanged) {
+      this.persistAgents().catch((err) =>
+        console.error('[ws] Failed to persist agents after heartbeat status fix:', err),
+      );
+    }
   }
 
   private handleAgentList(_message: AgentListRequest, senderWs: WebSocket) {
@@ -435,13 +535,20 @@ export class RelayRoom extends DurableObject<AppEnv> {
   private async handleHistoryRequest(message: HistoryRequest, senderWs: WebSocket) {
     try {
       const limit = Math.min(message.limit ?? 50, 200);
-      const rows = await getHistory(this.env.DB, message.agentId, limit, message.before);
+      const rows = await getHistory(
+        this.env.DB,
+        message.agentId,
+        limit,
+        message.before,
+        message.sessionId,
+      );
 
       this.sendTo(senderWs, {
         id: crypto.randomUUID(),
         type: MessageType.HISTORY_RESPONSE,
         timestamp: Date.now(),
         agentId: message.agentId,
+        sessionId: message.sessionId,
         messages: rows.map((r) => ({
           id: r.id,
           role: r.role as 'user' | 'assistant',
@@ -470,6 +577,7 @@ export class RelayRoom extends DurableObject<AppEnv> {
         'assistant',
         message.content,
         message.timestamp,
+        message.sessionId,
       );
     } catch (err) {
       console.error('[db] Failed to persist assistant message:', err);
@@ -494,6 +602,25 @@ export class RelayRoom extends DurableObject<AppEnv> {
     } catch (err) {
       console.error('[push] Failed to notify disconnected apps:', err);
     }
+  }
+
+  private async handleSessionsUpdate(
+    message: SessionsUpdate,
+    sender: WebSocketAttachment,
+  ): Promise<void> {
+    const agent = this.agents.get(message.agentId);
+    if (!agent || agent.bridgeId !== sender.clientId) return;
+
+    agent.sessions = message.sessions;
+    await this.persistAgents();
+
+    this.broadcastToApps({
+      id: crypto.randomUUID(),
+      type: MessageType.SESSIONS_UPDATE,
+      timestamp: Date.now(),
+      agentId: message.agentId,
+      sessions: message.sessions,
+    });
   }
 
   getAgentList(): AgentWithStatus[] {

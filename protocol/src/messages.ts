@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { AgentInfoSchema, AgentWithStatusSchema } from './agent';
+import { AgentInfoSchema, AgentSessionSchema, AgentWithStatusSchema } from './agent';
 import { AgentStatus, MessageType } from './enums';
 
 // Base envelope
@@ -15,6 +15,7 @@ export const ChatSendSchema = BaseMessage.extend({
   type: z.literal(MessageType.CHAT_SEND),
   agentId: z.string(),
   content: z.string(),
+  sessionId: z.string().optional(),
 });
 export type ChatSend = z.infer<typeof ChatSendSchema>;
 
@@ -24,6 +25,7 @@ export const ChatReceiveSchema = BaseMessage.extend({
   agentId: z.string(),
   content: z.string(),
   messageId: z.string(),
+  sessionId: z.string().optional(),
 });
 export type ChatReceive = z.infer<typeof ChatReceiveSchema>;
 
@@ -33,6 +35,7 @@ export const ChatStreamSchema = BaseMessage.extend({
   agentId: z.string(),
   token: z.string(),
   messageId: z.string(),
+  sessionId: z.string().optional(),
 });
 export type ChatStream = z.infer<typeof ChatStreamSchema>;
 
@@ -42,6 +45,7 @@ export const ChatStreamEndSchema = BaseMessage.extend({
   agentId: z.string(),
   messageId: z.string(),
   content: z.string(), // full assembled content
+  sessionId: z.string().optional(),
 });
 export type ChatStreamEnd = z.infer<typeof ChatStreamEndSchema>;
 
@@ -72,6 +76,7 @@ export const HistoryRequestSchema = BaseMessage.extend({
   agentId: z.string(),
   limit: z.number().optional(),
   before: z.number().optional(), // timestamp cursor
+  sessionId: z.string().optional(),
 });
 export type HistoryRequest = z.infer<typeof HistoryRequestSchema>;
 
@@ -79,6 +84,7 @@ export type HistoryRequest = z.infer<typeof HistoryRequestSchema>;
 export const HistoryResponseSchema = BaseMessage.extend({
   type: z.literal(MessageType.HISTORY_RESPONSE),
   agentId: z.string(),
+  sessionId: z.string().optional(),
   messages: z.array(
     z.object({
       id: z.string(),
@@ -117,6 +123,7 @@ export const ChatForwardSchema = BaseMessage.extend({
   agentId: z.string(),
   content: z.string(),
   userId: z.string(),
+  sessionId: z.string().optional(),
 });
 export type ChatForward = z.infer<typeof ChatForwardSchema>;
 
@@ -135,6 +142,14 @@ export const AuthMessageSchema = BaseMessage.extend({
 });
 export type AuthMessage = z.infer<typeof AuthMessageSchema>;
 
+// Bridge → Relay → App: agent pushes session list changes
+export const SessionsUpdateSchema = BaseMessage.extend({
+  type: z.literal(MessageType.SESSIONS_UPDATE),
+  agentId: z.string(),
+  sessions: z.array(AgentSessionSchema),
+});
+export type SessionsUpdate = z.infer<typeof SessionsUpdateSchema>;
+
 // Discriminated union of all messages
 export const RelayMessageSchema = z.discriminatedUnion('type', [
   AuthMessageSchema,
@@ -152,5 +167,6 @@ export const RelayMessageSchema = z.discriminatedUnion('type', [
   AgentHeartbeatSchema,
   ChatForwardSchema,
   ErrorMessageSchema,
+  SessionsUpdateSchema,
 ]);
 export type RelayMessage = z.infer<typeof RelayMessageSchema>;

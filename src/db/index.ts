@@ -44,6 +44,30 @@ try {
 } catch {
   // Column already exists — safe to ignore
 }
+try {
+  expoDb.execSync(`ALTER TABLE messages ADD COLUMN session_id TEXT;`);
+} catch {
+  // Column already exists — safe to ignore
+}
+try {
+  expoDb.execSync(
+    `CREATE INDEX IF NOT EXISTS idx_messages_agent_session ON messages(agent_id, session_id, created_at);`,
+  );
+} catch {
+  // Index already exists — safe to ignore
+}
+try {
+  expoDb.execSync(
+    `CREATE TABLE IF NOT EXISTS sessions (
+      id TEXT PRIMARY KEY,
+      agent_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      updated_at INTEGER NOT NULL
+    );`,
+  );
+} catch {
+  // Table already exists — safe to ignore
+}
 
 export const db = drizzle(expoDb, { schema });
 export { schema };

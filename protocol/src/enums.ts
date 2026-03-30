@@ -23,6 +23,9 @@ export enum MessageType {
 
   // Relay → Bridge
   CHAT_FORWARD = 'chat.forward',
+
+  // Bridge → Relay → App: agent pushes session list changes
+  SESSIONS_UPDATE = 'sessions.update',
 }
 
 export enum AgentStatus {

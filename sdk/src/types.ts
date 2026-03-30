@@ -25,12 +25,21 @@ export enum MessageType {
 
   // Relay → Bridge
   CHAT_FORWARD = 'chat.forward',
+
+  // Bridge → Relay → App: agent pushes session list changes
+  SESSIONS_UPDATE = 'sessions.update',
 }
 
 export enum AgentStatus {
   ONLINE = 'online',
   OFFLINE = 'offline',
   BUSY = 'busy',
+}
+
+export interface AgentSession {
+  id: string;
+  title: string;
+  updatedAt: number;
 }
 
 export interface AgentInfo {
@@ -72,6 +81,7 @@ export interface ChatForward extends BaseMessage {
   agentId: string;
   content: string;
   userId: string;
+  sessionId?: string;
 }
 
 // Bridge → Relay: streaming token
@@ -80,6 +90,7 @@ export interface ChatStream extends BaseMessage {
   agentId: string;
   token: string;
   messageId: string;
+  sessionId?: string;
 }
 
 // Bridge → Relay: end of stream
@@ -88,6 +99,7 @@ export interface ChatStreamEnd extends BaseMessage {
   agentId: string;
   messageId: string;
   content: string;
+  sessionId?: string;
 }
 
 // Bridge → Relay: complete response (non-streaming)
@@ -96,6 +108,7 @@ export interface ChatReceive extends BaseMessage {
   agentId: string;
   content: string;
   messageId: string;
+  sessionId?: string;
 }
 
 // Error message
@@ -103,6 +116,13 @@ export interface ErrorMessage extends BaseMessage {
   type: MessageType.ERROR;
   code: string;
   message: string;
+}
+
+// Bridge → Relay → App: session list update
+export interface SessionsUpdateMessage extends BaseMessage {
+  type: MessageType.SESSIONS_UPDATE;
+  agentId: string;
+  sessions: AgentSession[];
 }
 
 // Union of messages the SDK sends
@@ -113,7 +133,8 @@ export type OutgoingMessage =
   | ChatStream
   | ChatStreamEnd
   | ChatReceive
-  | ErrorMessage;
+  | ErrorMessage
+  | SessionsUpdateMessage;
 
 // Union of messages the SDK receives
 export type IncomingRelayMessage = ChatForward | ErrorMessage;
@@ -123,14 +144,20 @@ export interface IncomingMessage {
   content: string;
   userId: string;
   messageId: string;
+  sessionId?: string;
+}
+
+export interface StreamOptions {
+  /** Override the sessionId for this response (useful when creating a new session for a sessionless message) */
+  sessionId?: string;
 }
 
 // Response stream for sending back tokens/results
 export interface ResponseStream {
   /** Send a streaming token */
-  token(text: string): void;
+  token(text: string, options?: StreamOptions): void;
   /** Finalize the response with full assembled content */
-  end(content: string): void;
+  end(content: string, options?: StreamOptions): void;
   /** Send an error response */
   error(message: string): void;
 }

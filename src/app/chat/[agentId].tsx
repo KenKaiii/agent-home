@@ -19,10 +19,18 @@ import { useAgentsStore } from '@/stores/agents';
 import { useConnectionStore } from '@/stores/connection';
 
 export default function ChatScreen() {
-  const { agentId } = useLocalSearchParams<{ agentId: string }>();
+  const { agentId, sessionId, newChat } = useLocalSearchParams<{
+    agentId: string;
+    sessionId?: string;
+    newChat?: string;
+  }>();
   const agent = useAgentsStore((s) => s.agents.get(agentId ?? ''));
   const connectionStatus = useConnectionStore((s) => s.status);
-  const { messages, sendMessage, isStreaming } = useChat(agentId ?? '');
+  const { messages, sendMessage, isStreaming } = useChat(
+    agentId ?? '',
+    sessionId,
+    Boolean(newChat),
+  );
   const listRef = useRef<FlatList>(null);
 
   const isDisabled = connectionStatus !== 'connected' || agent?.status === 'offline';
@@ -48,6 +56,7 @@ export default function ChatScreen() {
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => <ChatBubble message={item} />}
           contentContainerStyle={styles.list}
+          onLayout={() => listRef.current?.scrollToEnd({ animated: false })}
           onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
           ListFooterComponent={
             isStreaming ? (
@@ -76,9 +85,9 @@ export default function ChatScreen() {
           />
         }
       />
-      <View style={styles.inputContainer} pointerEvents="box-none">
+      <View style={styles.inputContainer}>
         <MaskedView
-          style={styles.inputBlur}
+          style={StyleSheet.absoluteFillObject}
           pointerEvents="none"
           maskElement={
             <LinearGradient
@@ -103,7 +112,7 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingTop: 100,
-    paddingBottom: 140,
+    paddingBottom: spacing.md,
   },
   emptyContainer: {
     flex: 1,
@@ -132,13 +141,6 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   inputContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     paddingBottom: spacing.md,
-  },
-  inputBlur: {
-    ...StyleSheet.absoluteFillObject,
   },
 });

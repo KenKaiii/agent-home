@@ -39,10 +39,15 @@ export function AgentCard({ agent }: { agent: Agent }) {
   const title = firstUserMessage?.content ?? agent.name;
   const timestamp = firstUserMessage?.createdAt ?? agent.lastMessageAt;
 
+  const hasSessions = agent.sessions && agent.sessions.length > 0;
+
   return (
     <Pressable
       style={({ pressed }) => [styles.container, pressed && styles.pressed]}
-      onPress={() => router.push(`/chat/${agent.id}`)}
+      onPress={() => {
+        if (hasSessions) router.push(`/sessions/${agent.id}`);
+        else router.push(`/chat/${agent.id}`);
+      }}
     >
       <Text style={styles.title} numberOfLines={1}>
         {title}
