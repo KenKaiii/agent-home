@@ -4,12 +4,25 @@ import type { BaseMessage } from './types';
 const HEARTBEAT_INTERVAL = 30_000;
 const RECONNECT_INTERVALS = [1000, 2000, 4000, 8000, 16000, 30000];
 
+/** Resolve a WebSocket constructor that works in both browser and Node.js */
+function getWebSocketImpl(): typeof WebSocket {
+  if (typeof WebSocket !== 'undefined') return WebSocket;
+  // Node.js / Electron main process — try to load 'ws' package
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return require('ws') as typeof WebSocket;
+  } catch {
+    throw new Error('No WebSocket implementation found. Install the "ws" package: npm install ws');
+  }
+}
+
 type MessageHandler = (message: BaseMessage & Record<string, unknown>) => void;
 
 export class Transport {
   private ws: WebSocket | null = null;
   private url: string;
   private token: string;
+  private WebSocketImpl: typeof WebSocket;
   private reconnectAttempt = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
@@ -22,6 +35,7 @@ export class Transport {
   constructor(url: string, token: string) {
     this.url = url;
     this.token = token;
+    this.WebSocketImpl = getWebSocketImpl();
   }
 
   connect(): void {
@@ -39,7 +53,7 @@ export class Transport {
   }
 
   send(message: BaseMessage): void {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+    if (this.ws && this.ws.readyState === this.WebSocketImpl.OPEN) {
       this.ws.send(JSON.stringify(message));
     }
   }
@@ -69,7 +83,7 @@ export class Transport {
   private doConnect(): void {
     this.clearTimers();
 
-    this.ws = new WebSocket(this.url);
+    this.ws = new this.WebSocketImpl(this.url) as WebSocket;
 
     this.ws.addEventListener('open', () => {
       this.reconnectAttempt = 0;
@@ -118,7 +132,7 @@ export class Transport {
   private startHeartbeat(): void {
     if (!this.heartbeatPayload) return;
     this.heartbeatTimer = setInterval(() => {
-      if (this.ws && this.ws.readyState === WebSocket.OPEN && this.heartbeatPayload) {
+      if (this.ws && this.ws.readyState === this.WebSocketImpl.OPEN && this.heartbeatPayload) {
         this.send(this.heartbeatPayload());
       }
     }, HEARTBEAT_INTERVAL);

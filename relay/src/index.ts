@@ -67,6 +67,24 @@ app.post('/auth/pair', async (c) => {
   return c.json({ token, clientId });
 });
 
+// Generate a bridge token using any valid authenticated token
+app.post('/auth/bridge-token', async (c) => {
+  const payload = await authenticateRequest(c.req.header('Authorization'), c.env.JWT_SECRET);
+  if (!payload) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  const clientId = crypto.randomUUID();
+  const token = await createToken({ clientId, clientType: ClientType.BRIDGE }, c.env.JWT_SECRET);
+
+  // Derive the relay URL from the request
+  const url = new URL(c.req.url);
+  const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+  const relayUrl = `${protocol}//${url.host}/ws`;
+
+  return c.json({ token, clientId, relayUrl });
+});
+
 // Generate a token (secured by provisioning secret in header)
 app.post('/auth/token', async (c) => {
   const authHeader = c.req.header('Authorization') ?? '';
@@ -85,6 +103,24 @@ app.post('/auth/token', async (c) => {
   const token = await createToken({ clientId, clientType }, c.env.JWT_SECRET);
 
   return c.json({ token, clientId });
+});
+
+// Logs endpoint — recent relay event log
+app.get('/logs', async (c) => {
+  const id = c.env.RELAY_ROOM.idFromName('relay');
+  const stub = c.env.RELAY_ROOM.get(id);
+  const res = await stub.fetch(new Request('http://internal/logs'));
+  const data = await res.json();
+  return c.json(data);
+});
+
+// Debug endpoint — relay state inspection
+app.get('/debug', async (c) => {
+  const id = c.env.RELAY_ROOM.idFromName('relay');
+  const stub = c.env.RELAY_ROOM.get(id);
+  const res = await stub.fetch(new Request('http://internal/debug'));
+  const data = await res.json();
+  return c.json(data);
 });
 
 // REST agent list fallback

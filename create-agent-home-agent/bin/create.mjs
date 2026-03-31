@@ -172,6 +172,12 @@ client.onMessage(async (message, stream) => {
   }
 });
 
+client.onSessionDelete((sessionId) => {
+  // Clean up when a user deletes a session from the app
+  sessions.delete(sessionId);
+  pushSessions();
+});
+
 client.onConnect(() => {
   console.log('✓ Connected to Agent Home');
   pushSessions(); // push existing sessions on reconnect

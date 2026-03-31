@@ -51,6 +51,10 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "relayUrl": "wss://agent-home-relay.buzzbeamaustralia.workers.dev/ws",
+      "provisioningSecret": "agent-home-provision-2026"
     }
   }
 }

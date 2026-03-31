@@ -46,6 +46,13 @@ export default function RootLayout() {
               headerShown: false,
             }}
           />
+          <Stack.Screen
+            name="generate-token"
+            options={{
+              presentation: 'modal',
+              headerShown: false,
+            }}
+          />
         </Stack>
       </SafeAreaProvider>
     </ErrorBoundary>

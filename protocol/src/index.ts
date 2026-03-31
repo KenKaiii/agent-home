@@ -19,6 +19,8 @@ export {
   ChatForwardSchema,
   ErrorMessageSchema,
   SessionsUpdateSchema,
+  SessionDeleteSchema,
+  SessionDeleteForwardSchema,
 } from './messages';
 export type {
   AuthMessage,
@@ -37,5 +39,7 @@ export type {
   ChatForward,
   ErrorMessage,
   SessionsUpdate,
+  SessionDelete,
+  SessionDeleteForward,
   RelayMessage,
 } from './messages';

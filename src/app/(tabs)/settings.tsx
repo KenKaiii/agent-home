@@ -21,29 +21,6 @@ interface ConnectedDevice {
   updated_at: number | null;
 }
 
-const MOCK_DEVICES: ConnectedDevice[] = [
-  {
-    id: 'bridge-macbook',
-    device_name: "Ken's MacBook Pro",
-    app_name: 'Agent Home',
-    platform: 'macos',
-    app_version: '1.0.0',
-    client_type: 'bridge',
-    created_at: Date.now() - 2 * 24 * 60 * 60 * 1000,
-    updated_at: Date.now() - 5 * 60 * 1000,
-  },
-  {
-    id: 'bridge-vps',
-    device_name: 'buzzbeam-prod-01',
-    app_name: 'BuzzBeam Dashboard',
-    platform: 'linux',
-    app_version: '2.3.1',
-    client_type: 'bridge',
-    created_at: Date.now() - 30 * 24 * 60 * 60 * 1000,
-    updated_at: Date.now() - 10 * 60 * 1000,
-  },
-];
-
 function getTimeAgo(timestamp: number): string {
   const diff = Date.now() - timestamp;
   const minutes = Math.floor(diff / 60000);
@@ -61,14 +38,10 @@ function DeviceIcon({ platform }: { platform: string | null }) {
 }
 
 export default function SettingsScreen() {
-  const { relayUrl, token } = useConnectionStore();
+  const { relayUrl, token, status, lastError } = useConnectionStore();
   const [devices, setDevices] = useState<ConnectedDevice[]>([]);
 
   useEffect(() => {
-    // Use mock data in dev, fetch from relay in production
-    if (__DEV__) {
-      setDevices(MOCK_DEVICES);
-    }
     // TODO: In production, fetch from GET /devices with auth
   }, []);
 
@@ -107,11 +80,49 @@ export default function SettingsScreen() {
       <BlurHeader title="Settings" showBack={false} />
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Connection</Text>
+          <View style={styles.debugRow}>
+            <Text style={styles.debugLabel}>Status</Text>
+            <Text
+              style={[
+                styles.debugValue,
+                {
+                  color:
+                    status === 'connected'
+                      ? colors.green
+                      : status === 'connecting'
+                        ? colors.yellow
+                        : colors.red,
+                },
+              ]}
+            >
+              {status}
+            </Text>
+          </View>
+          <View style={styles.debugRow}>
+            <Text style={styles.debugLabel}>Relay</Text>
+            <Text style={styles.debugValue} numberOfLines={1}>
+              {relayUrl || '(not set)'}
+            </Text>
+          </View>
+          <View style={styles.debugRow}>
+            <Text style={styles.debugLabel}>Token</Text>
+            <Text style={styles.debugValue}>{token ? `...${token.slice(-12)}` : '(none)'}</Text>
+          </View>
+          {lastError && (
+            <View style={styles.debugRow}>
+              <Text style={styles.debugLabel}>Error</Text>
+              <Text style={[styles.debugValue, { color: colors.red }]}>{lastError}</Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.section}>
           <Pressable
-            style={({ pressed }) => [styles.qrButton, pressed && styles.buttonPressed]}
-            onPress={() => router.push('/scan')}
+            style={({ pressed }) => [styles.generateButton, pressed && styles.buttonPressed]}
+            onPress={() => router.push('/generate-token')}
           >
-            <Text style={styles.qrButtonText}>+ Link an app</Text>
+            <Text style={styles.generateButtonText}>Generate SDK Token</Text>
           </Pressable>
         </View>
 
@@ -175,14 +186,14 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xl,
     fontWeight: 'bold',
   },
-  qrButton: {
-    backgroundColor: colors.green,
+  generateButton: {
+    backgroundColor: colors.accent,
     borderRadius: 14,
     padding: spacing.lg,
     alignItems: 'center',
   },
-  qrButtonText: {
-    color: '#000000',
+  generateButtonText: {
+    color: '#ffffff',
     fontSize: fontSize.lg,
     fontWeight: '400',
   },
@@ -225,5 +236,25 @@ const styles = StyleSheet.create({
   },
   disconnectButton: {
     padding: spacing.sm,
+  },
+  debugRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  debugLabel: {
+    color: colors.textSecondary,
+    fontSize: fontSize.sm,
+  },
+  debugValue: {
+    color: colors.text,
+    fontSize: fontSize.sm,
+    fontFamily: 'monospace',
+    flexShrink: 1,
+    textAlign: 'right',
+    marginLeft: spacing.md,
   },
 });

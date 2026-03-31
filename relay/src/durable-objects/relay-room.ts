@@ -15,12 +15,14 @@ import {
   MessageType,
   RelayMessageSchema,
   type RelayMessage as RelayMessageType,
+  type SessionDelete,
   type SessionsUpdate,
 } from '@agent-home/protocol';
 import { DurableObject } from 'cloudflare:workers';
 
 import {
   adoptOrphanedUserMessages,
+  deleteSessionMessages,
   getDevicesByType,
   getHistory,
   insertMessage,
@@ -311,6 +313,7 @@ export class RelayRoom extends DurableObject<AppEnv> {
       MessageType.CHAT_SEND,
       MessageType.AGENT_LIST,
       MessageType.HISTORY_REQUEST,
+      MessageType.SESSION_DELETE,
     ]);
 
     if (bridgeOnly.has(message.type) && sender.clientType !== 'bridge') {
@@ -380,6 +383,9 @@ export class RelayRoom extends DurableObject<AppEnv> {
         break;
       case MessageType.SESSIONS_UPDATE:
         await this.handleSessionsUpdate(message as SessionsUpdate, sender);
+        break;
+      case MessageType.SESSION_DELETE:
+        await this.handleSessionDelete(message as SessionDelete);
         break;
       default:
         this.sendTo(senderWs, {
@@ -650,6 +656,45 @@ export class RelayRoom extends DurableObject<AppEnv> {
       timestamp: Date.now(),
       agentId: message.agentId,
       sessions: message.sessions,
+    });
+  }
+
+  private async handleSessionDelete(message: SessionDelete): Promise<void> {
+    const agent = this.agents.get(message.agentId);
+    if (!agent) return;
+
+    // Remove session from agent entry
+    if (agent.sessions) {
+      agent.sessions = agent.sessions.filter((s) => s.id !== message.sessionId);
+    }
+    await this.persistAgents();
+
+    // Delete messages from D1
+    try {
+      await deleteSessionMessages(this.env.DB, message.agentId, message.sessionId);
+    } catch (err) {
+      console.error('[db] Failed to delete session messages:', err);
+    }
+
+    // Forward to the owning bridge so the agent can clean up
+    const bridgeWs = this.findBridgeWebSocket(agent.bridgeId);
+    if (bridgeWs) {
+      this.sendTo(bridgeWs, {
+        id: crypto.randomUUID(),
+        type: MessageType.SESSION_DELETE_FORWARD,
+        timestamp: Date.now(),
+        agentId: message.agentId,
+        sessionId: message.sessionId,
+      });
+    }
+
+    // Broadcast updated sessions to all app clients
+    this.broadcastToApps({
+      id: crypto.randomUUID(),
+      type: MessageType.SESSIONS_UPDATE,
+      timestamp: Date.now(),
+      agentId: message.agentId,
+      sessions: agent.sessions ?? [],
     });
   }
 

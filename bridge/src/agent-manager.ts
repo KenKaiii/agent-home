@@ -1,4 +1,4 @@
-import { type ChatForward, MessageType } from '@agent-home/protocol';
+import { type ChatForward, MessageType, type SessionDeleteForward } from '@agent-home/protocol';
 import { nanoid } from 'nanoid';
 
 import type { AgentAdapter } from './agents/base.js';
@@ -18,6 +18,15 @@ export class AgentManager {
     this.connection.on(MessageType.CHAT_FORWARD, (msg) => {
       const forward = msg as ChatForward;
       this.handleChatForward(forward);
+    });
+
+    // Listen for session delete forwards from relay
+    this.connection.on(MessageType.SESSION_DELETE_FORWARD, (msg) => {
+      const forward = msg as SessionDeleteForward;
+      const agent = this.agents.get(forward.agentId);
+      if (agent) {
+        agent.onSessionDelete?.(forward.sessionId);
+      }
     });
   }
 

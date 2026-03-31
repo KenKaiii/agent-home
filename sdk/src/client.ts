@@ -15,6 +15,7 @@ function generateId(): string {
 }
 
 type MessageHandler = (message: IncomingMessage, stream: ResponseStream) => void | Promise<void>;
+type SessionDeleteHandler = (sessionId: string) => void | Promise<void>;
 
 export class AgentHomeClient {
   private transport: Transport;
@@ -22,6 +23,7 @@ export class AgentHomeClient {
   private messageHandler: MessageHandler | null = null;
   private connectHandler: (() => void) | null = null;
   private disconnectHandler: (() => void) | null = null;
+  private sessionDeleteHandler: SessionDeleteHandler | null = null;
 
   constructor(options: AgentHomeClientOptions) {
     this.options = options;
@@ -67,6 +69,16 @@ export class AgentHomeClient {
         });
       }
     });
+
+    // Listen for session delete forwards
+    this.transport.on(MessageType.SESSION_DELETE_FORWARD, (raw) => {
+      const msg = raw as unknown as { agentId: string; sessionId: string };
+      if (this.sessionDeleteHandler) {
+        Promise.resolve(this.sessionDeleteHandler(msg.sessionId)).catch((err) => {
+          console.error('[agent-home] Session delete handler error:', err);
+        });
+      }
+    });
   }
 
   /** Start connecting to the relay */
@@ -99,6 +111,11 @@ export class AgentHomeClient {
   /** Register a handler called when disconnected from the relay */
   onDisconnect(handler: () => void): void {
     this.disconnectHandler = handler;
+  }
+
+  /** Register a handler called when a session is deleted */
+  onSessionDelete(handler: SessionDeleteHandler): void {
+    this.sessionDeleteHandler = handler;
   }
 
   private registerAgent(): void {

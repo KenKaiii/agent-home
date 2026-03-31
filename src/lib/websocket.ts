@@ -2,7 +2,8 @@ import { MessageType, type RelayMessage } from '@agent-home/protocol';
 
 import { HEARTBEAT_INTERVAL, HEARTBEAT_TIMEOUT, RECONNECT_INTERVALS } from './config';
 
-const nanoid = () => crypto.randomUUID();
+const nanoid = () =>
+  'xxxx-xxxx-xxxx'.replace(/x/g, () => Math.floor(Math.random() * 16).toString(16));
 
 type MessageHandler = (message: RelayMessage) => void;
 

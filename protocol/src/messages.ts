@@ -150,6 +150,22 @@ export const SessionsUpdateSchema = BaseMessage.extend({
 });
 export type SessionsUpdate = z.infer<typeof SessionsUpdateSchema>;
 
+// App → Relay: delete a session
+export const SessionDeleteSchema = BaseMessage.extend({
+  type: z.literal(MessageType.SESSION_DELETE),
+  agentId: z.string(),
+  sessionId: z.string(),
+});
+export type SessionDelete = z.infer<typeof SessionDeleteSchema>;
+
+// Relay → Bridge: forward session deletion to agent
+export const SessionDeleteForwardSchema = BaseMessage.extend({
+  type: z.literal(MessageType.SESSION_DELETE_FORWARD),
+  agentId: z.string(),
+  sessionId: z.string(),
+});
+export type SessionDeleteForward = z.infer<typeof SessionDeleteForwardSchema>;
+
 // Discriminated union of all messages
 export const RelayMessageSchema = z.discriminatedUnion('type', [
   AuthMessageSchema,
@@ -168,5 +184,7 @@ export const RelayMessageSchema = z.discriminatedUnion('type', [
   ChatForwardSchema,
   ErrorMessageSchema,
   SessionsUpdateSchema,
+  SessionDeleteSchema,
+  SessionDeleteForwardSchema,
 ]);
 export type RelayMessage = z.infer<typeof RelayMessageSchema>;

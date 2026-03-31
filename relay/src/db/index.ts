@@ -63,6 +63,17 @@ export async function adoptOrphanedUserMessages(
     .run();
 }
 
+export async function deleteSessionMessages(
+  db: D1Database,
+  agentId: string,
+  sessionId: string,
+): Promise<void> {
+  await db
+    .prepare('DELETE FROM messages WHERE agent_id = ? AND session_id = ?')
+    .bind(agentId, sessionId)
+    .run();
+}
+
 export async function upsertDevice(
   db: D1Database,
   id: string,

@@ -278,7 +278,13 @@ client.onMessage(async (message, stream) => {
   }
 });
 
-// 5. Push initial sessions on connect
+// 5. Clean up when a session is deleted from the app
+client.onSessionDelete((sessionId) => {
+  sessions.delete(sessionId);
+  pushSessions();
+});
+
+// 6. Push initial sessions on connect
 client.onConnect(() => {
   pushSessions();
 });
@@ -304,6 +310,20 @@ Agent Home keeps sessions in sync between your agent and all connected iOS apps:
 - **Session IDs are opaque strings** — Agent Home passes them through unchanged. Use any format you want (UUIDs, slugs, timestamps, etc.).
 - **The relay persists sessions** — sessions survive reconnects. They're stored alongside the agent registration and broadcast to all connected apps.
 - **Response streams are auto-tagged for existing sessions** — when a message arrives with a `sessionId`, all `stream.token()` and `stream.end()` calls are automatically tagged with that `sessionId`. You only need the override for new sessions (where the incoming `sessionId` is `undefined`).
+
+### `client.onSessionDelete(handler)`
+
+Called when a user deletes a session from the Agent Home app. Use this to clean up your agent's state (conversation history, context, etc.) for that session.
+
+```ts
+client.onSessionDelete((sessionId) => {
+  // Clean up your agent's state for this session
+  sessions.delete(sessionId);
+  pushSessions();
+});
+```
+
+The relay handles removing the session from its own storage and deleting message history automatically. This callback is for cleaning up your agent's own state.
 
 ### `client.onConnect(handler)`
 

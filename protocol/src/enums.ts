@@ -26,6 +26,12 @@ export enum MessageType {
 
   // Bridge → Relay → App: agent pushes session list changes
   SESSIONS_UPDATE = 'sessions.update',
+
+  // App → Relay: delete a session
+  SESSION_DELETE = 'session.delete',
+
+  // Relay → Bridge: forward session deletion to agent
+  SESSION_DELETE_FORWARD = 'session.delete.forward',
 }
 
 export enum AgentStatus {

@@ -9,6 +9,8 @@ export interface AgentAdapter {
   onResponse(callback: (response: string) => void): void;
   onError(callback: (error: string) => void): void;
 
+  onSessionDelete?(sessionId: string): void;
+
   start(): Promise<void>;
   stop(): Promise<void>;
 }

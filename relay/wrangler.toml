@@ -16,7 +16,7 @@ new_classes = ["RelayRoom"]
 binding = "DB"
 database_name = "relay-db"
 # Set this via: wrangler d1 create agent-home-db (or inject via CI)
-database_id = "SET_VIA_WRANGLER_D1_CREATE_OR_CI"
+database_id = "2d54a759-60ec-451a-b016-f1c75d0e35c1"
 
 # Non-secret config vars
 # [vars]

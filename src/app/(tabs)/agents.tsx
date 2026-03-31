@@ -25,7 +25,7 @@ export default function AgentsScreen() {
         <View style={styles.emptyContainer}>
           <HugeiconsIcon icon={ComputerDesk01Icon} size={48} color={colors.textSecondary} />
           <Text style={styles.empty}>No apps connected</Text>
-          <Text style={styles.hint}>Scan a QR code to pair an app</Text>
+          <Text style={styles.hint}>Generate an SDK token to connect an app</Text>
         </View>
       ) : (
         <FlatList

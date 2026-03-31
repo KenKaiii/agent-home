@@ -28,6 +28,12 @@ export enum MessageType {
 
   // Bridge → Relay → App: agent pushes session list changes
   SESSIONS_UPDATE = 'sessions.update',
+
+  // App → Relay: delete a session
+  SESSION_DELETE = 'session.delete',
+
+  // Relay → Bridge: forward session deletion to agent
+  SESSION_DELETE_FORWARD = 'session.delete.forward',
 }
 
 export enum AgentStatus {
@@ -136,8 +142,15 @@ export type OutgoingMessage =
   | ErrorMessage
   | SessionsUpdateMessage;
 
+// Relay → Bridge: session deletion notification
+export interface SessionDeleteForward extends BaseMessage {
+  type: MessageType.SESSION_DELETE_FORWARD;
+  agentId: string;
+  sessionId: string;
+}
+
 // Union of messages the SDK receives
-export type IncomingRelayMessage = ChatForward | ErrorMessage;
+export type IncomingRelayMessage = ChatForward | ErrorMessage | SessionDeleteForward;
 
 // High-level incoming message for consumer callbacks
 export interface IncomingMessage {

@@ -18,6 +18,7 @@ export {
   type ChatReceive,
   type ErrorMessage,
   type SessionsUpdateMessage,
+  type SessionDeleteForward,
   type StreamOptions,
   type OutgoingMessage,
   type IncomingRelayMessage,
