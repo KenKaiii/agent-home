@@ -16,6 +16,7 @@ import { ConnectionStatus } from '@/components/ConnectionStatus';
 import { useChat } from '@/hooks/useChat';
 import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { colors, fontSize, spacing } from '@/lib/constants';
+import { lightTap } from '@/lib/haptics';
 import { useAgentsStore } from '@/stores/agents';
 import { useConnectionStore } from '@/stores/connection';
 
@@ -91,7 +92,13 @@ export default function ChatScreen() {
         title={isWorking ? 'Working now' : (agent?.name ?? agentId ?? 'Chat')}
         isWorking={isWorking}
         rightElement={
-          <Pressable onPress={() => router.push(`/chat/${agentId}?newChat=1`)} hitSlop={8}>
+          <Pressable
+            onPress={() => {
+              lightTap();
+              router.push(`/chat/${agentId}?newChat=1`);
+            }}
+            hitSlop={8}
+          >
             <HugeiconsIcon icon={BubbleChatAddIcon} size={24} color={colors.accent} />
           </Pressable>
         }

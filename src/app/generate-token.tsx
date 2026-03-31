@@ -10,6 +10,7 @@ import { Cancel01Icon } from '@hugeicons/core-free-icons';
 import { HugeiconsIcon } from '@hugeicons/react-native';
 
 import { colors, fontSize, spacing } from '@/lib/constants';
+import { lightTap, successHaptic } from '@/lib/haptics';
 import { useConnectionStore } from '@/stores/connection';
 
 const STORAGE_KEY_URL = 'relay-url';
@@ -147,6 +148,7 @@ export default function GenerateTokenScreen() {
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   const handleCopy = async (value: string, field: string) => {
+    successHaptic();
     await Clipboard.setStringAsync(value);
     setCopiedField(field);
     setTimeout(() => setCopiedField(null), 2000);
@@ -158,7 +160,10 @@ export default function GenerateTokenScreen() {
         <Text style={styles.title}>SDK Token</Text>
         <Pressable
           style={({ pressed }) => [styles.closeButton, pressed && styles.buttonPressed]}
-          onPress={() => router.back()}
+          onPress={() => {
+            lightTap();
+            router.back();
+          }}
           hitSlop={8}
         >
           <HugeiconsIcon icon={Cancel01Icon} size={20} color={colors.text} />

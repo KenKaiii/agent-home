@@ -7,6 +7,7 @@ import { and, asc, eq } from 'drizzle-orm';
 
 import { db, schema } from '@/db';
 import { colors, fontSize, spacing } from '@/lib/constants';
+import { lightTap } from '@/lib/haptics';
 import type { Agent } from '@/types';
 
 function getTimeAgo(timestamp: number): string {
@@ -45,6 +46,7 @@ export function AgentCard({ agent }: { agent: Agent }) {
     <Pressable
       style={({ pressed }) => [styles.container, pressed && styles.pressed]}
       onPress={() => {
+        lightTap();
         if (hasSessions) router.push(`/sessions/${agent.id}`);
         else router.push(`/chat/${agent.id}`);
       }}

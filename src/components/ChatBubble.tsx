@@ -10,6 +10,7 @@ import Markdown, { type RenderRules } from 'react-native-markdown-display';
 
 import { StreamingCursor } from '@/components/StreamingText';
 import { colors, fontSize, spacing } from '@/lib/constants';
+import { successHaptic } from '@/lib/haptics';
 import type { ChatMessage } from '@/types';
 
 // Known library bug — it spreads a key prop into JSX internally
@@ -201,7 +202,10 @@ const markdownRules: RenderRules = {
         <View style={codeBlockStyles.header}>
           <Text style={codeBlockStyles.lang}>{lang || 'code'}</Text>
           <Pressable
-            onPress={() => Clipboard.setStringAsync(content)}
+            onPress={() => {
+              successHaptic();
+              Clipboard.setStringAsync(content);
+            }}
             hitSlop={8}
             style={codeBlockStyles.copyBtn}
           >
@@ -265,6 +269,7 @@ function ChatBubbleInner({ message }: { message: ChatMessage }) {
   const timeStr = format(new Date(message.createdAt), 'HH:mm');
 
   const handleCopy = useCallback(() => {
+    successHaptic();
     Clipboard.setStringAsync(message.content);
   }, [message.content]);
 

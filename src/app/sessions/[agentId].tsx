@@ -11,6 +11,7 @@ import { eq } from 'drizzle-orm';
 import { BlurHeader } from '@/components/BlurHeader';
 import { db, schema } from '@/db';
 import { colors, fontSize, spacing } from '@/lib/constants';
+import { heavyTap, lightTap, selectionTick } from '@/lib/haptics';
 import { relayClient } from '@/lib/websocket';
 import { useAgentsStore } from '@/stores/agents';
 import type { AgentSession } from '@/types';
@@ -82,6 +83,7 @@ function SessionRow({
         } else {
           // If swiped left enough, open
           if (gestureState.dx < -SWIPE_THRESHOLD) {
+            selectionTick();
             isOpen.current = true;
             Animated.spring(translateX, {
               toValue: -DELETE_BUTTON_WIDTH,
@@ -106,6 +108,7 @@ function SessionRow({
       <Pressable
         style={styles.deleteButton}
         onPress={() => {
+          heavyTap();
           Animated.timing(translateX, {
             toValue: 0,
             duration: 200,
@@ -124,7 +127,10 @@ function SessionRow({
       >
         <Pressable
           style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-          onPress={onPress}
+          onPress={() => {
+            lightTap();
+            onPress();
+          }}
         >
           <Text style={styles.rowTitle} numberOfLines={1}>
             {session.title}

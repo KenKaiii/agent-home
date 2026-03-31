@@ -2,6 +2,7 @@ import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors, fontSize, spacing } from '@/lib/constants';
+import { mediumTap } from '@/lib/haptics';
 
 interface Props {
   children: ReactNode;
@@ -35,7 +36,10 @@ export class ErrorBoundary extends Component<Props, State> {
           <Text style={styles.message}>{this.state.error?.message ?? 'Unknown error'}</Text>
           <Pressable
             style={styles.button}
-            onPress={() => this.setState({ hasError: false, error: null })}
+            onPress={() => {
+              mediumTap();
+              this.setState({ hasError: false, error: null });
+            }}
           >
             <Text style={styles.buttonText}>Try Again</Text>
           </Pressable>

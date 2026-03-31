@@ -8,6 +8,7 @@ import { HugeiconsIcon } from '@hugeicons/react-native';
 
 import { BlurHeader } from '@/components/BlurHeader';
 import { colors, fontSize, spacing } from '@/lib/constants';
+import { lightTap, warningHaptic } from '@/lib/haptics';
 import { useConnectionStore } from '@/stores/connection';
 
 interface ConnectedDevice {
@@ -46,6 +47,7 @@ export default function SettingsScreen() {
   }, []);
 
   const handleDisconnect = (device: ConnectedDevice) => {
+    warningHaptic();
     Alert.alert('Disconnect Device', `Remove ${device.device_name ?? 'this device'}?`, [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -120,7 +122,10 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Pressable
             style={({ pressed }) => [styles.generateButton, pressed && styles.buttonPressed]}
-            onPress={() => router.push('/generate-token')}
+            onPress={() => {
+              lightTap();
+              router.push('/generate-token');
+            }}
           >
             <Text style={styles.generateButtonText}>Generate SDK Token</Text>
           </Pressable>

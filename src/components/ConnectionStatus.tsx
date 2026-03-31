@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
 
 import { colors, fontSize, spacing } from '@/lib/constants';
+import { mediumTap } from '@/lib/haptics';
 import { relayClient } from '@/lib/websocket';
 import { useConnectionStore } from '@/stores/connection';
 
@@ -19,6 +20,7 @@ export function ConnectionStatus() {
   const bgColor = status === 'connecting' ? colors.yellow : colors.red;
 
   const handleRetry = () => {
+    mediumTap();
     if (token) {
       relayClient.disconnect();
       relayClient.connect(relayUrl, token);

@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { colors, fontSize, spacing } from '@/lib/constants';
+import { lightTap } from '@/lib/haptics';
 import { useAgentsStore } from '@/stores/agents';
 import type { ConnectedApp } from '@/types';
 
@@ -28,6 +29,7 @@ export function AppCard({ app }: { app: ConnectedApp }) {
   const sessionCount = appAgents.reduce((sum, a) => sum + (a.sessions?.length ?? 0), 0);
 
   const handlePress = () => {
+    lightTap();
     // If this app maps to a single agent, skip the agent list and go directly
     if (appAgents.length === 1) {
       const agent = appAgents[0];

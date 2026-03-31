@@ -9,6 +9,7 @@ import { HugeiconsIcon } from '@hugeicons/react-native';
 import { AppCard } from '@/components/AppCard';
 import { BlurHeader } from '@/components/BlurHeader';
 import { colors, fontSize, spacing } from '@/lib/constants';
+import { lightTap } from '@/lib/haptics';
 import { useAgentsStore } from '@/stores/agents';
 
 export default function AgentsScreen() {
@@ -27,7 +28,13 @@ export default function AgentsScreen() {
         title="Apps"
         showBack={false}
         rightElement={
-          <Pressable onPress={() => router.push('/settings')} hitSlop={8}>
+          <Pressable
+            onPress={() => {
+              lightTap();
+              router.push('/settings');
+            }}
+            hitSlop={8}
+          >
             <HugeiconsIcon icon={Settings01Icon} size={22} color={colors.accent} />
           </Pressable>
         }

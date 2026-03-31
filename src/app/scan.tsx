@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Alert, Platform, Pressable, StyleSheet, Text, Vibration, View } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import Constants from 'expo-constants';
@@ -11,6 +11,7 @@ import { Cancel01Icon } from '@hugeicons/core-free-icons';
 import { HugeiconsIcon } from '@hugeicons/react-native';
 
 import { colors, fontSize, spacing } from '@/lib/constants';
+import { lightTap, mediumTap, successHaptic } from '@/lib/haptics';
 import { relayClient } from '@/lib/websocket';
 import { useConnectionStore } from '@/stores/connection';
 
@@ -58,7 +59,7 @@ export default function ScanScreen() {
         return;
       }
 
-      Vibration.vibrate();
+      successHaptic();
 
       const hostname = new URL(parsed.url).hostname;
 
@@ -147,7 +148,10 @@ export default function ScanScreen() {
         <Text style={styles.message}>Camera access is needed to scan QR codes for pairing.</Text>
         <Pressable
           style={({ pressed }) => [styles.permissionButton, pressed && styles.buttonPressed]}
-          onPress={requestPermission}
+          onPress={() => {
+            mediumTap();
+            requestPermission();
+          }}
         >
           <Text style={styles.permissionButtonText}>Grant Permission</Text>
         </Pressable>
@@ -173,7 +177,10 @@ export default function ScanScreen() {
 
       <Pressable
         style={({ pressed }) => [styles.closeButton, pressed && styles.buttonPressed]}
-        onPress={() => router.back()}
+        onPress={() => {
+          lightTap();
+          router.back();
+        }}
       >
         <HugeiconsIcon icon={Cancel01Icon} size={20} color={colors.text} />
       </Pressable>

@@ -11,6 +11,7 @@ import MaskedView from '@react-native-masked-view/masked-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors, fontSize, spacing } from '@/lib/constants';
+import { lightTap } from '@/lib/haptics';
 
 interface BlurHeaderProps {
   title: string;
@@ -93,7 +94,14 @@ export function BlurHeader({ title, rightElement, showBack = true, isWorking }: 
       </MaskedView>
       <View style={[styles.content, { marginTop: insets.top }]}>
         {showBack ? (
-          <Pressable onPress={() => router.back()} hitSlop={8} style={styles.backButton}>
+          <Pressable
+            onPress={() => {
+              lightTap();
+              router.back();
+            }}
+            hitSlop={8}
+            style={styles.backButton}
+          >
             <HugeiconsIcon icon={ArrowLeft02Icon} size={22} color={colors.accent} />
           </Pressable>
         ) : (

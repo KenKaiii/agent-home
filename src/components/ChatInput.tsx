@@ -5,6 +5,7 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { colors, fontSize, spacing } from '@/lib/constants';
+import { mediumTap } from '@/lib/haptics';
 
 interface ChatInputProps {
   onSend: (text: string) => void;
@@ -89,6 +90,7 @@ export function ChatInput({ onSend, disabled, isWorking = false }: ChatInputProp
   const handleSend = () => {
     const trimmed = text.trim();
     if (!trimmed) return;
+    mediumTap();
     onSend(trimmed);
     setText('');
   };
