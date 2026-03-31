@@ -1,5 +1,5 @@
 import type { AgentConfig } from '../config.js';
-import type { AgentAdapter } from './base.js';
+import type { AgentAdapter, AgentMessage } from './base.js';
 
 export class HttpAgent implements AgentAdapter {
   id: string;
@@ -36,12 +36,16 @@ export class HttpAgent implements AgentAdapter {
     console.log(`[agent:${this.id}] HTTP agent ready at ${this.url}`);
   }
 
-  async send(message: string) {
+  async send(message: AgentMessage) {
     try {
       const response = await fetch(`${this.url}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({
+          message: message.content,
+          sessionId: message.sessionId,
+          messageId: message.messageId,
+        }),
       });
 
       if (!response.ok) {

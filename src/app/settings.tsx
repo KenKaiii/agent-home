@@ -77,7 +77,7 @@ export default function SettingsScreen() {
 
   return (
     <View style={styles.container}>
-      <BlurHeader title="Settings" showBack={false} />
+      <BlurHeader title="Settings" />
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Connection</Text>

@@ -122,6 +122,7 @@ export interface ErrorMessage extends BaseMessage {
   type: MessageType.ERROR;
   code: string;
   message: string;
+  agentId?: string;
 }
 
 // Bridge → Relay → App: session list update

@@ -1,4 +1,9 @@
-import { type ChatForward, MessageType, type SessionDeleteForward } from '@agent-home/protocol';
+import {
+  AgentStatus,
+  type ChatForward,
+  MessageType,
+  type SessionDeleteForward,
+} from '@agent-home/protocol';
 import { nanoid } from 'nanoid';
 
 import type { AgentAdapter } from './agents/base.js';
@@ -7,9 +12,17 @@ import { StdioAgent } from './agents/stdio.js';
 import type { AgentConfig } from './config.js';
 import type { BridgeConnection } from './connection.js';
 
+/** Tracks the context of an in-flight forward to an agent */
+interface ActiveForward {
+  messageId: string;
+  sessionId?: string;
+}
+
 export class AgentManager {
   private agents = new Map<string, AgentAdapter>();
   private connection: BridgeConnection;
+  /** Per-agent active forward context — keyed by agentId */
+  private activeForwards = new Map<string, ActiveForward>();
 
   constructor(connection: BridgeConnection) {
     this.connection = connection;
@@ -40,24 +53,23 @@ export class AgentManager {
     }
 
     // Wire up streaming callbacks
-    const streamingMessageId = { current: '' };
-
     agent.onToken((token) => {
-      if (!streamingMessageId.current) {
-        streamingMessageId.current = nanoid();
-      }
+      const forward = this.activeForwards.get(agent.id);
+      const messageId = forward?.messageId ?? nanoid();
       this.connection.send({
         id: nanoid(),
         type: MessageType.CHAT_STREAM,
         timestamp: Date.now(),
         agentId: agent.id,
         token,
-        messageId: streamingMessageId.current,
+        messageId,
+        ...(forward?.sessionId ? { sessionId: forward.sessionId } : {}),
       });
     });
 
     agent.onResponse((response) => {
-      const messageId = streamingMessageId.current || nanoid();
+      const forward = this.activeForwards.get(agent.id);
+      const messageId = forward?.messageId ?? nanoid();
       this.connection.send({
         id: nanoid(),
         type: MessageType.CHAT_STREAM_END,
@@ -65,18 +77,39 @@ export class AgentManager {
         agentId: agent.id,
         messageId,
         content: response,
+        ...(forward?.sessionId ? { sessionId: forward.sessionId } : {}),
       });
-      streamingMessageId.current = '';
+      this.activeForwards.delete(agent.id);
+
+      // Set agent back to ONLINE
+      this.connection.send({
+        id: nanoid(),
+        type: MessageType.AGENT_STATUS,
+        timestamp: Date.now(),
+        agentId: agent.id,
+        status: AgentStatus.ONLINE,
+      });
     });
 
     agent.onError((error) => {
       console.error(`[agent:${agent.id}] Error:`, error);
+      this.activeForwards.delete(agent.id);
       this.connection.send({
         id: nanoid(),
         type: MessageType.ERROR,
         timestamp: Date.now(),
         code: 'AGENT_ERROR',
         message: error,
+        agentId: agent.id,
+      });
+
+      // Set agent back to ONLINE after error
+      this.connection.send({
+        id: nanoid(),
+        type: MessageType.AGENT_STATUS,
+        timestamp: Date.now(),
+        agentId: agent.id,
+        status: AgentStatus.ONLINE,
       });
     });
 
@@ -113,18 +146,49 @@ export class AgentManager {
       return;
     }
 
+    // Track the forward context for this agent
+    const messageId = nanoid();
+    this.activeForwards.set(agent.id, {
+      messageId,
+      sessionId: forward.sessionId,
+    });
+
+    // Set agent to BUSY
+    this.connection.send({
+      id: nanoid(),
+      type: MessageType.AGENT_STATUS,
+      timestamp: Date.now(),
+      agentId: agent.id,
+      status: AgentStatus.BUSY,
+    });
+
     console.log(`[bridge] Forwarding message to ${agent.name}: ${forward.content.slice(0, 50)}...`);
     try {
-      await agent.send(forward.content);
+      await agent.send({
+        content: forward.content,
+        sessionId: forward.sessionId,
+        messageId,
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(`[bridge] Failed to send to agent ${agent.id}:`, message);
+      this.activeForwards.delete(agent.id);
       this.connection.send({
         id: nanoid(),
         type: MessageType.ERROR,
         timestamp: Date.now(),
         code: 'AGENT_ERROR',
         message,
+        agentId: agent.id,
+      });
+
+      // Set agent back to ONLINE after error
+      this.connection.send({
+        id: nanoid(),
+        type: MessageType.AGENT_STATUS,
+        timestamp: Date.now(),
+        agentId: agent.id,
+        status: AgentStatus.ONLINE,
       });
     }
   }

@@ -21,11 +21,14 @@ export function AppCard({ app }: { app: ConnectedApp }) {
   const router = useRouter();
   const agents = useAgentsStore((s) => s.agents);
 
+  // Find agents belonging to this app and count total sessions
+  const appAgents = Array.from(agents.values()).filter(
+    (a) => a.appId === app.id || a.id === app.id,
+  );
+  const sessionCount = appAgents.reduce((sum, a) => sum + (a.sessions?.length ?? 0), 0);
+
   const handlePress = () => {
     // If this app maps to a single agent, skip the agent list and go directly
-    const appAgents = Array.from(agents.values()).filter(
-      (a) => a.appId === app.id || a.id === app.id,
-    );
     if (appAgents.length === 1) {
       const agent = appAgents[0];
       if (agent.sessions && agent.sessions.length > 0) {
@@ -48,9 +51,11 @@ export function AppCard({ app }: { app: ConnectedApp }) {
           <Text style={styles.name} numberOfLines={1}>
             {app.name}
           </Text>
-          <View style={styles.countBadge}>
-            <Text style={styles.countText}>{app.agentCount}</Text>
-          </View>
+          {sessionCount > 0 && (
+            <View style={styles.countBadge}>
+              <Text style={styles.countText}>{sessionCount}</Text>
+            </View>
+          )}
         </View>
         <Text style={styles.deviceName} numberOfLines={1}>
           {app.hostName}

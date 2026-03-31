@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { MessageType } from '@agent-home/protocol';
-import type { ChatReceive, ChatStreamEnd, HistoryResponse } from '@agent-home/protocol';
+import type {
+  ChatReceive,
+  ChatStreamEnd,
+  ErrorMessage,
+  HistoryResponse,
+} from '@agent-home/protocol';
 import { and, desc, eq, isNull } from 'drizzle-orm';
 
 import { db, schema } from '@/db';
@@ -159,10 +164,20 @@ export function useChat(agentId: string, sessionId?: string, isNewChat: boolean 
       loadMessages();
     });
 
+    // Handle agent errors — clear waiting state and reload
+    const unsub4 = relayClient.on(MessageType.ERROR, (msg) => {
+      const errorMsg = msg as ErrorMessage;
+      if (errorMsg.agentId === agentId && errorMsg.code === 'AGENT_ERROR') {
+        useMessagesStore.getState().clearWaiting(agentId);
+        loadMessages();
+      }
+    });
+
     return () => {
       unsub();
       unsub2();
       unsub3();
+      unsub4();
     };
   }, [agentId, activeSessionId, isNewChat, loadMessages]);
 

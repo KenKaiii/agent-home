@@ -1,7 +1,7 @@
 import { type ChildProcess, spawn } from 'node:child_process';
 
 import type { AgentConfig } from '../config.js';
-import type { AgentAdapter } from './base.js';
+import type { AgentAdapter, AgentMessage } from './base.js';
 
 export class StdioAgent implements AgentAdapter {
   id: string;
@@ -72,7 +72,7 @@ export class StdioAgent implements AgentAdapter {
     });
   }
 
-  async send(message: string) {
+  async send(message: AgentMessage) {
     if (this.isProcessing) {
       throw new Error(`Agent ${this.id} is already processing a message`);
     }
@@ -86,8 +86,8 @@ export class StdioAgent implements AgentAdapter {
     this.isProcessing = true;
 
     try {
-      // Write message to stdin
-      this.childProcess.stdin.write(message + '\n');
+      // Write message content to stdin
+      this.childProcess.stdin.write(message.content + '\n');
 
       // Wait a bit for output to come through, then finalize
       // This is a simplified approach - real agents may need protocol-specific handling

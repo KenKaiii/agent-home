@@ -132,6 +132,7 @@ export const ErrorMessageSchema = BaseMessage.extend({
   type: z.literal(MessageType.ERROR),
   code: z.string(),
   message: z.string(),
+  agentId: z.string().optional(),
 });
 export type ErrorMessage = z.infer<typeof ErrorMessageSchema>;
 

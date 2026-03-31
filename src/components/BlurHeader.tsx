@@ -5,6 +5,8 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 
+import { ArrowLeft02Icon } from '@hugeicons/core-free-icons';
+import { HugeiconsIcon } from '@hugeicons/react-native';
 import MaskedView from '@react-native-masked-view/masked-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -92,8 +94,7 @@ export function BlurHeader({ title, rightElement, showBack = true, isWorking }: 
       <View style={[styles.content, { marginTop: insets.top }]}>
         {showBack ? (
           <Pressable onPress={() => router.back()} hitSlop={8} style={styles.backButton}>
-            <Text style={styles.backChevron}>‹</Text>
-            <Text style={styles.backText}>Back</Text>
+            <HugeiconsIcon icon={ArrowLeft02Icon} size={22} color={colors.accent} />
           </Pressable>
         ) : (
           <View style={styles.backButton} />
@@ -150,16 +151,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     minWidth: 60,
-  },
-  backChevron: {
-    color: colors.accent,
-    fontSize: 28,
-    lineHeight: 28,
-    marginRight: 2,
-  },
-  backText: {
-    color: colors.accent,
-    fontSize: fontSize.lg,
   },
   titleCenter: {
     flex: 1,

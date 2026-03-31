@@ -1,11 +1,19 @@
 import { useRef } from 'react';
-import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
+import {
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
-import { AiBrain01Icon } from '@hugeicons/core-free-icons';
+import { AiBrain01Icon, BubbleChatAddIcon } from '@hugeicons/core-free-icons';
 import { HugeiconsIcon } from '@hugeicons/react-native';
 import MaskedView from '@react-native-masked-view/masked-view';
 
@@ -19,6 +27,7 @@ import { useAgentsStore } from '@/stores/agents';
 import { useConnectionStore } from '@/stores/connection';
 
 export default function ChatScreen() {
+  const router = useRouter();
   const { agentId, sessionId, newChat } = useLocalSearchParams<{
     agentId: string;
     sessionId?: string;
@@ -71,19 +80,9 @@ export default function ChatScreen() {
         title={isWorking ? 'Working now' : (agent?.name ?? agentId ?? 'Chat')}
         isWorking={isWorking}
         rightElement={
-          <View
-            style={[
-              styles.statusDot,
-              {
-                backgroundColor:
-                  agent?.status === 'online'
-                    ? colors.green
-                    : agent?.status === 'busy'
-                      ? colors.yellow
-                      : colors.red,
-              },
-            ]}
-          />
+          <Pressable onPress={() => router.push(`/chat/${agentId}?newChat=1`)} hitSlop={8}>
+            <HugeiconsIcon icon={BubbleChatAddIcon} size={24} color={colors.accent} />
+          </Pressable>
         }
       />
       <View style={styles.inputContainer}>
@@ -126,12 +125,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     textAlign: 'center',
   },
-  statusDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: spacing.md,
-  },
+
   typingContainer: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,

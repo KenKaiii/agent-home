@@ -4,7 +4,7 @@ import { Animated, FlatList, PanResponder, Pressable, StyleSheet, Text, View } f
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 
 import { MessageType } from '@agent-home/protocol';
-import { Add01Icon } from '@hugeicons/core-free-icons';
+import { BubbleChatAddIcon } from '@hugeicons/core-free-icons';
 import { HugeiconsIcon } from '@hugeicons/react-native';
 import { eq } from 'drizzle-orm';
 
@@ -195,7 +195,7 @@ export default function SessionsScreen() {
         title={agent?.name ?? 'Sessions'}
         rightElement={
           <Pressable onPress={() => router.push(`/chat/${agentId}?newChat=1`)} hitSlop={8}>
-            <HugeiconsIcon icon={Add01Icon} size={24} color={colors.accent} />
+            <HugeiconsIcon icon={BubbleChatAddIcon} size={24} color={colors.accent} />
           </Pressable>
         }
       />

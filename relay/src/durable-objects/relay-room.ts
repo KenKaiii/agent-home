@@ -11,6 +11,7 @@ import {
   type ChatSend,
   type ChatStream,
   type ChatStreamEnd,
+  type ErrorMessage,
   type HistoryRequest,
   MessageType,
   RelayMessageSchema,
@@ -386,6 +387,12 @@ export class RelayRoom extends DurableObject<AppEnv> {
         break;
       case MessageType.SESSION_DELETE:
         await this.handleSessionDelete(message as SessionDelete);
+        break;
+      case MessageType.ERROR:
+        if (sender.clientType === 'bridge') {
+          this.log(`[error] Agent error from bridge: ${(message as ErrorMessage).message}`);
+          this.broadcastToApps(message);
+        }
         break;
       default:
         this.sendTo(senderWs, {

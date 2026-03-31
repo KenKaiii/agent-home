@@ -7,6 +7,7 @@ import type {
   ChatReceive,
   ChatStream,
   ChatStreamEnd,
+  ErrorMessage,
   HistoryResponse,
   SessionsUpdate,
 } from '@agent-home/protocol';
@@ -235,10 +236,30 @@ export function useWebSocket(ready: boolean = false) {
 
     // --- Error handling ---
     const unsubError = relayClient.on(MessageType.ERROR, (msg) => {
-      const message =
-        'message' in msg ? (msg as { message: string }).message : 'Unknown server error';
+      const errorMsg = msg as ErrorMessage;
+      const message = errorMsg.message ?? 'Unknown server error';
       console.error('[ws] Server error:', message);
-      useConnectionStore.getState().setError(message);
+
+      // Agent-specific errors: insert an error message into the chat and clear waiting state
+      if (errorMsg.agentId && errorMsg.code === 'AGENT_ERROR') {
+        const errorId = nanoid();
+        db.insert(schema.messages)
+          .values({
+            id: errorId,
+            agentId: errorMsg.agentId,
+            role: 'assistant',
+            content: `⚠️ Error: ${message}`,
+            streaming: 0,
+            createdAt: msg.timestamp,
+            sessionId: null,
+          })
+          .onConflictDoNothing()
+          .run();
+
+        useMessagesStore.getState().clearWaiting(errorMsg.agentId);
+      } else {
+        useConnectionStore.getState().setError(message);
+      }
     });
 
     // --- NetInfo: reconnect on network recovery ---
