@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useRouter } from 'expo-router';
 
@@ -8,6 +8,7 @@ import { and, asc, eq } from 'drizzle-orm';
 import { db, schema } from '@/db';
 import { colors, fontSize, spacing } from '@/lib/constants';
 import { lightTap } from '@/lib/haptics';
+import { playClick } from '@/lib/sounds';
 import type { Agent } from '@/types';
 
 function getTimeAgo(timestamp: number): string {
@@ -47,13 +48,22 @@ export function AgentCard({ agent }: { agent: Agent }) {
       style={({ pressed }) => [styles.container, pressed && styles.pressed]}
       onPress={() => {
         lightTap();
+        playClick();
         if (hasSessions) router.push(`/sessions/${agent.id}`);
         else router.push(`/chat/${agent.id}`);
       }}
     >
-      <Text style={styles.title} numberOfLines={1}>
-        {title}
-      </Text>
+      <View style={styles.titleRow}>
+        <View
+          style={[
+            styles.statusDot,
+            { backgroundColor: agent.status === 'online' ? '#22c55e' : '#ef4444' },
+          ]}
+        />
+        <Text style={styles.title} numberOfLines={1}>
+          {title}
+        </Text>
+      </View>
       {timestamp ? <Text style={styles.timeAgo}>{getTimeAgo(timestamp)}</Text> : null}
     </Pressable>
   );
@@ -69,10 +79,21 @@ const styles = StyleSheet.create({
   pressed: {
     backgroundColor: colors.surfaceHover,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 8,
+  },
   title: {
     color: colors.text,
     fontSize: fontSize.lg,
     fontWeight: '600',
+    flexShrink: 1,
   },
   timeAgo: {
     color: colors.textSecondary,

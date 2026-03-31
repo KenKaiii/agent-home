@@ -21,6 +21,7 @@ import { BlurHeader } from '@/components/BlurHeader';
 import { db, schema } from '@/db';
 import { colors, fontSize, spacing } from '@/lib/constants';
 import { heavyTap, lightTap, selectionTick } from '@/lib/haptics';
+import { playClick } from '@/lib/sounds';
 import { relayClient } from '@/lib/websocket';
 import { useAgentsStore } from '@/stores/agents';
 import type { AgentSession } from '@/types';
@@ -205,6 +206,7 @@ function SessionRow({
           style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
           onPress={() => {
             lightTap();
+            playClick();
             onPress();
           }}
         >

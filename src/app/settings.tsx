@@ -1,129 +1,253 @@
-import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import {
+  Animated,
+  Easing,
+  PanResponder,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { router } from 'expo-router';
 
-import { Cancel01Icon, ComputerDesk01Icon, ServerStack01Icon } from '@hugeicons/core-free-icons';
-import { HugeiconsIcon } from '@hugeicons/react-native';
-
 import { BlurHeader } from '@/components/BlurHeader';
 import { colors, fontSize, spacing } from '@/lib/constants';
-import { lightTap, warningHaptic } from '@/lib/haptics';
+import { heavyTap, lightTap, selectionTick } from '@/lib/haptics';
+import { playClick } from '@/lib/sounds';
+import { useAgentsStore } from '@/stores/agents';
 import { useConnectionStore } from '@/stores/connection';
+import type { ConnectedApp } from '@/types';
 
-interface ConnectedDevice {
-  id: string;
-  device_name: string | null;
-  app_name: string | null;
-  platform: string | null;
-  app_version: string | null;
-  client_type: string;
-  created_at: number;
-  updated_at: number | null;
-}
+const DISCONNECT_BUTTON_WIDTH = 100;
+const SWIPE_THRESHOLD = 40;
 
-function getTimeAgo(timestamp: number): string {
-  const diff = Date.now() - timestamp;
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return 'Just now';
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
+function ConnectedAppRow({
+  app,
+  onDisconnect,
+  onSwipeStart,
+  onSwipeOpen,
+  onSwipeClose,
+  closeRef,
+}: {
+  app: ConnectedApp;
+  onDisconnect: () => void;
+  onSwipeStart: () => void;
+  onSwipeOpen: () => void;
+  onSwipeClose: () => void;
+  closeRef: React.MutableRefObject<(() => void) | null>;
+}) {
+  const translateX = useRef(new Animated.Value(0)).current;
+  const isOpen = useRef(false);
 
-function DeviceIcon({ platform }: { platform: string | null }) {
-  const icon = platform === 'linux' ? ServerStack01Icon : ComputerDesk01Icon;
-  return <HugeiconsIcon icon={icon} size={20} color={colors.text} />;
+  const callbacksRef = useRef({ onSwipeStart, onSwipeOpen, onSwipeClose });
+  callbacksRef.current = { onSwipeStart, onSwipeOpen, onSwipeClose };
+
+  const close = useCallback(() => {
+    if (isOpen.current) {
+      isOpen.current = false;
+      Animated.timing(translateX, {
+        toValue: 0,
+        duration: 250,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+      callbacksRef.current.onSwipeClose();
+    }
+  }, [translateX]);
+
+  const closeRefStable = useRef(closeRef);
+  closeRefStable.current = closeRef;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        const dominated = Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 2;
+        return Math.abs(gestureState.dx) > 15 && dominated;
+      },
+      onPanResponderTerminationRequest: () => false,
+      onShouldBlockNativeResponder: () => true,
+      onPanResponderGrant: () => {
+        callbacksRef.current.onSwipeStart();
+      },
+      onPanResponderMove: (_, gestureState) => {
+        if (isOpen.current) {
+          const newVal = -DISCONNECT_BUTTON_WIDTH + gestureState.dx;
+          translateX.setValue(Math.min(0, Math.max(-DISCONNECT_BUTTON_WIDTH, newVal)));
+        } else {
+          translateX.setValue(Math.min(0, Math.max(-DISCONNECT_BUTTON_WIDTH, gestureState.dx)));
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        const velocity = gestureState.vx;
+        if (isOpen.current) {
+          if (gestureState.dx > SWIPE_THRESHOLD) {
+            isOpen.current = false;
+            callbacksRef.current.onSwipeClose();
+            Animated.spring(translateX, {
+              toValue: 0,
+              velocity,
+              stiffness: 300,
+              damping: 30,
+              mass: 0.8,
+              useNativeDriver: true,
+            }).start();
+          } else {
+            Animated.spring(translateX, {
+              toValue: -DISCONNECT_BUTTON_WIDTH,
+              velocity,
+              stiffness: 300,
+              damping: 30,
+              mass: 0.8,
+              useNativeDriver: true,
+            }).start();
+          }
+        } else {
+          if (gestureState.dx < -SWIPE_THRESHOLD) {
+            selectionTick();
+            isOpen.current = true;
+            closeRefStable.current.current = close;
+            callbacksRef.current.onSwipeOpen();
+            Animated.spring(translateX, {
+              toValue: -DISCONNECT_BUTTON_WIDTH,
+              velocity,
+              stiffness: 300,
+              damping: 30,
+              mass: 0.8,
+              useNativeDriver: true,
+            }).start();
+          } else {
+            Animated.spring(translateX, {
+              toValue: 0,
+              velocity,
+              stiffness: 300,
+              damping: 30,
+              mass: 0.8,
+              useNativeDriver: true,
+            }).start();
+          }
+        }
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(translateX, {
+          toValue: isOpen.current ? -DISCONNECT_BUTTON_WIDTH : 0,
+          stiffness: 300,
+          damping: 30,
+          mass: 0.8,
+          useNativeDriver: true,
+        }).start();
+      },
+    }),
+  ).current;
+
+  const agentStatus = useAgentsStore((s) => s.agents.get(app.id)?.status);
+
+  return (
+    <View style={styles.swipeContainer}>
+      <Pressable
+        style={styles.disconnectButton}
+        onPress={() => {
+          heavyTap();
+          Animated.timing(translateX, {
+            toValue: 0,
+            duration: 200,
+            useNativeDriver: true,
+          }).start(() => {
+            isOpen.current = false;
+            onDisconnect();
+          });
+        }}
+      >
+        <Text style={styles.disconnectText}>Disconnect</Text>
+      </Pressable>
+      <Animated.View
+        style={[styles.appRowAnimated, { transform: [{ translateX }] }]}
+        {...panResponder.panHandlers}
+      >
+        <View style={styles.appRow}>
+          <View
+            style={[
+              styles.statusDot,
+              { backgroundColor: agentStatus === 'online' ? '#22c55e' : '#ef4444' },
+            ]}
+          />
+          <View style={styles.appInfo}>
+            <Text style={styles.appName} numberOfLines={1}>
+              {app.name}
+            </Text>
+            <Text style={styles.appMeta} numberOfLines={1}>
+              {app.hostName || app.platform}
+            </Text>
+          </View>
+        </View>
+      </Animated.View>
+    </View>
+  );
 }
 
 export default function SettingsScreen() {
-  const { relayUrl, token, status, lastError } = useConnectionStore();
-  const [devices, setDevices] = useState<ConnectedDevice[]>([]);
+  const { relayUrl, token } = useConnectionStore();
+  const appsMap = useAgentsStore((s) => s.apps);
+  const apps = useMemo(() => Array.from(appsMap.values()), [appsMap]);
+  const [scrollEnabled, setScrollEnabled] = useState(true);
 
-  useEffect(() => {
-    // TODO: In production, fetch from GET /devices with auth
+  const openRowCloseRef = useRef<(() => void) | null>(null);
+  const hasOpenRow = useRef(false);
+
+  const handleSwipeOpen = useCallback(() => {
+    hasOpenRow.current = true;
   }, []);
 
-  const handleDisconnect = (device: ConnectedDevice) => {
-    warningHaptic();
-    Alert.alert('Disconnect Device', `Remove ${device.device_name ?? 'this device'}?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Disconnect',
-        style: 'destructive',
-        onPress: async () => {
-          if (!__DEV__ && token) {
-            try {
-              const httpUrl = relayUrl
-                .replace('wss://', 'https://')
-                .replace('ws://', 'http://')
-                .replace(/\/ws$/, '');
-              const response = await fetch(`${httpUrl}/devices/${device.id}`, {
-                method: 'DELETE',
-                headers: { Authorization: `Bearer ${token}` },
-              });
-              if (!response.ok) {
-                console.error('[settings] Failed to delete device:', response.status);
-              }
-            } catch (error) {
-              console.error('[settings] Failed to disconnect device:', error);
-            }
-          }
-          setDevices((prev) => prev.filter((d) => d.id !== device.id));
-        },
-      },
-    ]);
-  };
+  const handleSwipeClose = useCallback(() => {
+    hasOpenRow.current = false;
+    openRowCloseRef.current = null;
+  }, []);
+
+  const handleSwipeStart = useCallback(() => {
+    if (hasOpenRow.current && openRowCloseRef.current) {
+      openRowCloseRef.current();
+    }
+    setScrollEnabled(false);
+    setTimeout(() => setScrollEnabled(true), 300);
+  }, []);
+
+  const handleDisconnect = useCallback(
+    (app: ConnectedApp) => {
+      heavyTap();
+      // Remove from relay via HTTP if connected
+      if (token) {
+        const httpUrl = relayUrl
+          .replace('wss://', 'https://')
+          .replace('ws://', 'http://')
+          .replace(/\/ws$/, '');
+        fetch(`${httpUrl}/devices/${app.id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        }).catch((error) => {
+          console.error('[settings] Failed to disconnect app:', error);
+        });
+      }
+      // Remove from local store (persisted — survives relay re-sync)
+      useAgentsStore.getState().disconnectApp(app.id);
+    },
+    [token, relayUrl],
+  );
 
   return (
     <View style={styles.container}>
       <BlurHeader title="Settings" />
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Connection</Text>
-          <View style={styles.debugRow}>
-            <Text style={styles.debugLabel}>Status</Text>
-            <Text
-              style={[
-                styles.debugValue,
-                {
-                  color:
-                    status === 'connected'
-                      ? colors.green
-                      : status === 'connecting'
-                        ? colors.yellow
-                        : colors.red,
-                },
-              ]}
-            >
-              {status}
-            </Text>
-          </View>
-          <View style={styles.debugRow}>
-            <Text style={styles.debugLabel}>Relay</Text>
-            <Text style={styles.debugValue} numberOfLines={1}>
-              {relayUrl || '(not set)'}
-            </Text>
-          </View>
-          <View style={styles.debugRow}>
-            <Text style={styles.debugLabel}>Token</Text>
-            <Text style={styles.debugValue}>{token ? `...${token.slice(-12)}` : '(none)'}</Text>
-          </View>
-          {lastError && (
-            <View style={styles.debugRow}>
-              <Text style={styles.debugLabel}>Error</Text>
-              <Text style={[styles.debugValue, { color: colors.red }]}>{lastError}</Text>
-            </View>
-          )}
-        </View>
-
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        scrollEnabled={scrollEnabled}
+      >
         <View style={styles.section}>
           <Pressable
             style={({ pressed }) => [styles.generateButton, pressed && styles.buttonPressed]}
             onPress={() => {
               lightTap();
+              playClick();
               router.push('/generate-token');
             }}
           >
@@ -131,40 +255,26 @@ export default function SettingsScreen() {
           </Pressable>
         </View>
 
-        {devices.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Linked Apps</Text>
-            {devices.map((device) => (
-              <View key={device.id} style={styles.deviceRow}>
-                <View style={styles.deviceIconContainer}>
-                  <DeviceIcon platform={device.platform} />
-                </View>
-                <View style={styles.deviceInfo}>
-                  <Text style={styles.deviceName} numberOfLines={1}>
-                    {device.device_name ?? device.id}
-                  </Text>
-                  <Text style={styles.deviceAppName} numberOfLines={1}>
-                    {device.app_name ?? 'Unknown App'}
-                  </Text>
-                  <Text style={styles.deviceMeta}>
-                    {device.platform ?? 'Unknown'} · v{device.app_version ?? '?'} · Last seen{' '}
-                    {getTimeAgo(device.updated_at ?? device.created_at)}
-                  </Text>
-                </View>
-                <Pressable
-                  onPress={() => handleDisconnect(device)}
-                  hitSlop={8}
-                  style={({ pressed }) => [
-                    styles.disconnectButton,
-                    pressed && styles.buttonPressed,
-                  ]}
-                >
-                  <HugeiconsIcon icon={Cancel01Icon} size={16} color={colors.red} />
-                </Pressable>
-              </View>
-            ))}
-          </View>
-        )}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Connected Apps</Text>
+          {apps.length > 0 ? (
+            <View style={styles.appsList}>
+              {apps.map((app) => (
+                <ConnectedAppRow
+                  key={app.id}
+                  app={app}
+                  onDisconnect={() => handleDisconnect(app)}
+                  onSwipeStart={handleSwipeStart}
+                  onSwipeOpen={handleSwipeOpen}
+                  onSwipeClose={handleSwipeClose}
+                  closeRef={openRowCloseRef}
+                />
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.emptyText}>No apps connected</Text>
+          )}
+        </View>
       </ScrollView>
     </View>
   );
@@ -190,6 +300,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: fontSize.xl,
     fontWeight: 'bold',
+    marginBottom: spacing.md,
   },
   generateButton: {
     backgroundColor: colors.accent,
@@ -205,61 +316,60 @@ const styles = StyleSheet.create({
   buttonPressed: {
     opacity: 0.8,
   },
-  deviceRow: {
+  appsList: {
+    marginTop: spacing.sm,
+  },
+  swipeContainer: {
+    overflow: 'hidden',
+    backgroundColor: colors.red,
+    borderRadius: 10,
+    marginBottom: spacing.sm,
+  },
+  disconnectButton: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: DISCONNECT_BUTTON_WIDTH,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.red,
+  },
+  disconnectText: {
+    color: '#fff',
+    fontSize: fontSize.sm,
+    fontWeight: '700',
+  },
+  appRowAnimated: {
+    backgroundColor: colors.surface,
+    borderRadius: 10,
+  },
+  appRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    padding: spacing.lg,
   },
-  deviceIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     marginRight: spacing.md,
   },
-  deviceInfo: {
+  appInfo: {
     flex: 1,
   },
-  deviceName: {
+  appName: {
     color: colors.text,
     fontSize: fontSize.md,
     fontWeight: '600',
   },
-  deviceAppName: {
-    color: colors.accent,
-    fontSize: fontSize.sm,
-    marginTop: 1,
-  },
-  deviceMeta: {
+  appMeta: {
     color: colors.textSecondary,
     fontSize: fontSize.sm,
     marginTop: 2,
   },
-  disconnectButton: {
-    padding: spacing.sm,
-  },
-  debugRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  debugLabel: {
+  emptyText: {
     color: colors.textSecondary,
-    fontSize: fontSize.sm,
-  },
-  debugValue: {
-    color: colors.text,
-    fontSize: fontSize.sm,
-    fontFamily: 'monospace',
-    flexShrink: 1,
-    textAlign: 'right',
-    marginLeft: spacing.md,
+    fontSize: fontSize.md,
   },
 });

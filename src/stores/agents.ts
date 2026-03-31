@@ -8,18 +8,31 @@ interface AgentsStore {
   apps: Map<string, ConnectedApp>;
   /** Session IDs the user has locally deleted — filtered out from relay updates */
   deletedSessionIds: Set<string>;
+  /** App IDs the user has disconnected — filtered out from relay updates */
+  disconnectedAppIds: Set<string>;
   updateAgent: (agent: Agent) => void;
   setAgents: (agents: Agent[]) => void;
   setApps: (apps: ConnectedApp[]) => void;
   updateStatus: (agentId: string, status: Agent['status']) => void;
   updateSessions: (agentId: string, sessions: AgentSession[]) => void;
   removeSession: (agentId: string, sessionId: string) => void;
+  disconnectApp: (appId: string) => void;
 }
 
 /** Load persisted deleted session IDs from SQLite */
 function loadDeletedSessionIds(): Set<string> {
   try {
     const rows = db.select().from(schema.deletedSessions).all();
+    return new Set(rows.map((r) => r.id));
+  } catch {
+    return new Set();
+  }
+}
+
+/** Load persisted disconnected app IDs from SQLite */
+function loadDisconnectedAppIds(): Set<string> {
+  try {
+    const rows = db.select().from(schema.disconnectedApps).all();
     return new Set(rows.map((r) => r.id));
   } catch {
     return new Set();
@@ -38,8 +51,10 @@ export const useAgentsStore = create<AgentsStore>((set, get) => ({
   agents: new Map(),
   apps: new Map(),
   deletedSessionIds: loadDeletedSessionIds(),
+  disconnectedAppIds: loadDisconnectedAppIds(),
   updateAgent: (agent) =>
     set((state) => {
+      if (state.disconnectedAppIds.has(agent.id)) return state;
       const agents = new Map(state.agents);
       agents.set(agent.id, {
         ...agent,
@@ -51,6 +66,7 @@ export const useAgentsStore = create<AgentsStore>((set, get) => ({
     set((state) => {
       const agents = new Map<string, Agent>();
       for (const agent of agentList) {
+        if (state.disconnectedAppIds.has(agent.id)) continue;
         agents.set(agent.id, {
           ...agent,
           sessions: filterDeletedSessions(agent.sessions, state.deletedSessionIds),
@@ -59,15 +75,17 @@ export const useAgentsStore = create<AgentsStore>((set, get) => ({
       return { agents };
     }),
   setApps: (appList) =>
-    set(() => {
+    set((state) => {
       const apps = new Map<string, ConnectedApp>();
       for (const app of appList) {
+        if (state.disconnectedAppIds.has(app.id)) continue;
         apps.set(app.id, app);
       }
       return { apps };
     }),
   updateStatus: (agentId, status) =>
     set((state) => {
+      if (state.disconnectedAppIds.has(agentId)) return state;
       const agents = new Map(state.agents);
       const agent = agents.get(agentId);
       if (agent) {
@@ -109,5 +127,28 @@ export const useAgentsStore = create<AgentsStore>((set, get) => ({
       }
 
       return { agents, deletedSessionIds };
+    }),
+  disconnectApp: (appId) =>
+    set((state) => {
+      const disconnectedAppIds = new Set(state.disconnectedAppIds);
+      disconnectedAppIds.add(appId);
+
+      const apps = new Map(state.apps);
+      apps.delete(appId);
+
+      const agents = new Map(state.agents);
+      agents.delete(appId);
+
+      // Persist to SQLite so disconnections survive app restarts
+      try {
+        db.insert(schema.disconnectedApps)
+          .values({ id: appId, disconnectedAt: Date.now() })
+          .onConflictDoNothing()
+          .run();
+      } catch {
+        // Best-effort persistence
+      }
+
+      return { apps, agents, disconnectedAppIds };
     }),
 }));

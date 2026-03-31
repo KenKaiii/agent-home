@@ -11,6 +11,7 @@ import { HugeiconsIcon } from '@hugeicons/react-native';
 
 import { colors, fontSize, spacing } from '@/lib/constants';
 import { lightTap, successHaptic } from '@/lib/haptics';
+import { playClick } from '@/lib/sounds';
 import { useConnectionStore } from '@/stores/connection';
 
 const STORAGE_KEY_URL = 'relay-url';
@@ -162,6 +163,7 @@ export default function GenerateTokenScreen() {
           style={({ pressed }) => [styles.closeButton, pressed && styles.buttonPressed]}
           onPress={() => {
             lightTap();
+            playClick();
             router.back();
           }}
           hitSlop={8}

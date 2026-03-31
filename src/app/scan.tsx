@@ -12,6 +12,7 @@ import { HugeiconsIcon } from '@hugeicons/react-native';
 
 import { colors, fontSize, spacing } from '@/lib/constants';
 import { lightTap, mediumTap, successHaptic } from '@/lib/haptics';
+import { playClick } from '@/lib/sounds';
 import { relayClient } from '@/lib/websocket';
 import { useConnectionStore } from '@/stores/connection';
 
@@ -150,6 +151,7 @@ export default function ScanScreen() {
           style={({ pressed }) => [styles.permissionButton, pressed && styles.buttonPressed]}
           onPress={() => {
             mediumTap();
+            playClick();
             requestPermission();
           }}
         >
@@ -179,6 +181,7 @@ export default function ScanScreen() {
         style={({ pressed }) => [styles.closeButton, pressed && styles.buttonPressed]}
         onPress={() => {
           lightTap();
+          playClick();
           router.back();
         }}
       >

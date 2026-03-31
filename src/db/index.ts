@@ -79,5 +79,16 @@ try {
   // Table already exists — safe to ignore
 }
 
+try {
+  expoDb.execSync(
+    `CREATE TABLE IF NOT EXISTS disconnected_apps (
+      id TEXT PRIMARY KEY,
+      disconnected_at INTEGER NOT NULL
+    );`,
+  );
+} catch {
+  // Table already exists — safe to ignore
+}
+
 export const db = drizzle(expoDb, { schema });
 export { schema };

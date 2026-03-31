@@ -22,6 +22,11 @@ export const deletedSessions = sqliteTable('deleted_sessions', {
   deletedAt: integer('deleted_at').notNull(),
 });
 
+export const disconnectedApps = sqliteTable('disconnected_apps', {
+  id: text('id').primaryKey(),
+  disconnectedAt: integer('disconnected_at').notNull(),
+});
+
 export const messages = sqliteTable('messages', {
   id: text('id').primaryKey(),
   agentId: text('agent_id').notNull(),

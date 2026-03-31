@@ -1,19 +1,23 @@
-import { useEffect, useState } from 'react';
-import { StyleSheet, Text } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, StyleSheet } from 'react-native';
 
 import { colors, fontSize } from '@/lib/constants';
 
 export function StreamingCursor() {
-  const [visible, setVisible] = useState(true);
+  const opacity = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setVisible((v) => !v);
-    }, 500);
-    return () => clearInterval(timer);
-  }, []);
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 0, duration: 500, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+      ]),
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [opacity]);
 
-  return <Text style={[styles.cursor, { opacity: visible ? 1 : 0 }]}>▊</Text>;
+  return <Animated.Text style={[styles.cursor, { opacity }]}>▊</Animated.Text>;
 }
 
 const styles = StyleSheet.create({

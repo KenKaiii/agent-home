@@ -10,6 +10,7 @@ import { AppCard } from '@/components/AppCard';
 import { BlurHeader } from '@/components/BlurHeader';
 import { colors, fontSize, spacing } from '@/lib/constants';
 import { lightTap } from '@/lib/haptics';
+import { playClick } from '@/lib/sounds';
 import { useAgentsStore } from '@/stores/agents';
 
 export default function AgentsScreen() {
@@ -31,6 +32,7 @@ export default function AgentsScreen() {
           <Pressable
             onPress={() => {
               lightTap();
+              playClick();
               router.push('/settings');
             }}
             hitSlop={8}
@@ -50,6 +52,8 @@ export default function AgentsScreen() {
           data={apps}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => <AppCard app={item} />}
+          numColumns={3}
+          columnWrapperStyle={styles.row}
           contentContainerStyle={styles.list}
         />
       )}
@@ -65,6 +69,10 @@ const styles = StyleSheet.create({
   list: {
     flexGrow: 1,
     paddingTop: 100,
+    paddingHorizontal: spacing.xl,
+  },
+  row: {
+    gap: spacing.md,
   },
   emptyContainer: {
     flex: 1,

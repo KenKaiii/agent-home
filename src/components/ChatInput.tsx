@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import { colors, fontSize, spacing } from '@/lib/constants';
 import { mediumTap } from '@/lib/haptics';
+import { playClick } from '@/lib/sounds';
 
 interface ChatInputProps {
   onSend: (text: string) => void;
@@ -91,6 +92,7 @@ export function ChatInput({ onSend, disabled, isWorking = false }: ChatInputProp
     const trimmed = text.trim();
     if (!trimmed) return;
     mediumTap();
+    playClick();
     onSend(trimmed);
     setText('');
   };

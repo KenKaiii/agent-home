@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors, fontSize, spacing } from '@/lib/constants';
 import { lightTap } from '@/lib/haptics';
+import { playClick } from '@/lib/sounds';
 
 interface BlurHeaderProps {
   title: string;
@@ -97,6 +98,7 @@ export function BlurHeader({ title, rightElement, showBack = true, isWorking }: 
           <Pressable
             onPress={() => {
               lightTap();
+              playClick();
               router.back();
             }}
             hitSlop={8}

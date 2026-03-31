@@ -17,6 +17,7 @@ import { useChat } from '@/hooks/useChat';
 import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { colors, fontSize, spacing } from '@/lib/constants';
 import { lightTap } from '@/lib/haptics';
+import { playClick } from '@/lib/sounds';
 import { useAgentsStore } from '@/stores/agents';
 import { useConnectionStore } from '@/stores/connection';
 
@@ -95,6 +96,7 @@ export default function ChatScreen() {
           <Pressable
             onPress={() => {
               lightTap();
+              playClick();
               router.push(`/chat/${agentId}?newChat=1`);
             }}
             hitSlop={8}
