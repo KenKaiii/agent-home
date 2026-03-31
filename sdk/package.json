@@ -1,6 +1,6 @@
 {
   "name": "@kenkaiiii/agent-home-sdk",
-  "version": "0.3.5",
+  "version": "0.3.8",
   "description": "Lightweight SDK to connect any Node.js project to Agent Home as an agent",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

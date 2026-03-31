@@ -173,9 +173,9 @@ client.onMessage(async (message, stream) => {
 });
 
 client.onSessionDelete((sessionId) => {
-  // Clean up when a user deletes a session from the app
+  // Clean up when a user deletes a session from the app.
+  // No need to call pushSessions() — the SDK auto-filters deleted sessions.
   sessions.delete(sessionId);
-  pushSessions();
 });
 
 client.onConnect(() => {

@@ -24,6 +24,8 @@ export class AgentHomeClient {
   private connectHandler: (() => void) | null = null;
   private disconnectHandler: (() => void) | null = null;
   private sessionDeleteHandler: SessionDeleteHandler | null = null;
+  /** Session IDs deleted by the user — auto-filtered from updateSessions() calls */
+  private deletedSessionIds = new Set<string>();
 
   constructor(options: AgentHomeClientOptions) {
     this.options = options;
@@ -73,6 +75,8 @@ export class AgentHomeClient {
     // Listen for session delete forwards
     this.transport.on(MessageType.SESSION_DELETE_FORWARD, (raw) => {
       const msg = raw as unknown as { agentId: string; sessionId: string };
+      // Auto-track so updateSessions() never re-pushes deleted sessions
+      this.deletedSessionIds.add(msg.sessionId);
       if (this.sessionDeleteHandler) {
         Promise.resolve(this.sessionDeleteHandler(msg.sessionId)).catch((err) => {
           console.error('[agent-home] Session delete handler error:', err);
@@ -129,12 +133,17 @@ export class AgentHomeClient {
 
   /** Push an updated session list for this agent */
   updateSessions(sessions: AgentSession[]): void {
+    // Auto-filter sessions that were deleted by the user
+    const filtered =
+      this.deletedSessionIds.size > 0
+        ? sessions.filter((s) => !this.deletedSessionIds.has(s.id))
+        : sessions;
     this.transport.send({
       id: generateId(),
       type: MessageType.SESSIONS_UPDATE,
       timestamp: Date.now(),
       agentId: this.options.agent.id,
-      sessions,
+      sessions: filtered,
     } as any);
   }
 

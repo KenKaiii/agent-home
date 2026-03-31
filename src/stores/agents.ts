@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import { db, schema } from '@/db';
 import type { Agent, AgentSession, ConnectedApp } from '@/types';
 
 interface AgentsStore {
@@ -15,6 +16,16 @@ interface AgentsStore {
   removeSession: (agentId: string, sessionId: string) => void;
 }
 
+/** Load persisted deleted session IDs from SQLite */
+function loadDeletedSessionIds(): Set<string> {
+  try {
+    const rows = db.select().from(schema.deletedSessions).all();
+    return new Set(rows.map((r) => r.id));
+  } catch {
+    return new Set();
+  }
+}
+
 function filterDeletedSessions(
   sessions: AgentSession[] | undefined,
   deletedIds: Set<string>,
@@ -26,7 +37,7 @@ function filterDeletedSessions(
 export const useAgentsStore = create<AgentsStore>((set, get) => ({
   agents: new Map(),
   apps: new Map(),
-  deletedSessionIds: new Set(),
+  deletedSessionIds: loadDeletedSessionIds(),
   updateAgent: (agent) =>
     set((state) => {
       const agents = new Map(state.agents);
@@ -86,6 +97,17 @@ export const useAgentsStore = create<AgentsStore>((set, get) => ({
           sessions: agent.sessions.filter((s) => s.id !== sessionId),
         });
       }
+
+      // Persist to SQLite so deletions survive app restarts
+      try {
+        db.insert(schema.deletedSessions)
+          .values({ id: sessionId, deletedAt: Date.now() })
+          .onConflictDoNothing()
+          .run();
+      } catch {
+        // Best-effort persistence
+      }
+
       return { agents, deletedSessionIds };
     }),
 }));

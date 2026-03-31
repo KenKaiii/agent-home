@@ -68,6 +68,16 @@ try {
 } catch {
   // Table already exists — safe to ignore
 }
+try {
+  expoDb.execSync(
+    `CREATE TABLE IF NOT EXISTS deleted_sessions (
+      id TEXT PRIMARY KEY,
+      deleted_at INTEGER NOT NULL
+    );`,
+  );
+} catch {
+  // Table already exists — safe to ignore
+}
 
 export const db = drizzle(expoDb, { schema });
 export { schema };

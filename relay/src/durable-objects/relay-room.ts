@@ -54,6 +54,8 @@ export class RelayRoom extends DurableObject<AppEnv> {
   private logs: string[] = [];
   /** Tracks user message IDs sent without a sessionId, keyed by agentId */
   private pendingUserMessages = new Map<string, Set<string>>();
+  /** Session IDs deleted by the user — prevents agents from re-adding them via updateSessions */
+  private deletedSessionIds = new Set<string>();
 
   private log(msg: string) {
     const entry = `${new Date().toISOString()} ${msg}`;
@@ -71,6 +73,12 @@ export class RelayRoom extends DurableObject<AppEnv> {
       if (stored) {
         for (const agent of stored) {
           this.agents.set(agent.id, agent);
+        }
+      }
+      const deletedIds = await this.ctx.storage.get<string[]>('deletedSessionIds');
+      if (deletedIds) {
+        for (const id of deletedIds) {
+          this.deletedSessionIds.add(id);
         }
       }
     });
@@ -654,7 +662,13 @@ export class RelayRoom extends DurableObject<AppEnv> {
     const agent = this.agents.get(message.agentId);
     if (!agent || agent.bridgeId !== sender.clientId) return;
 
-    agent.sessions = message.sessions;
+    // Filter out sessions that were deleted by the user
+    const filtered =
+      this.deletedSessionIds.size > 0
+        ? message.sessions.filter((s) => !this.deletedSessionIds.has(s.id))
+        : message.sessions;
+
+    agent.sessions = filtered;
     await this.persistAgents();
 
     this.broadcastToApps({
@@ -662,13 +676,17 @@ export class RelayRoom extends DurableObject<AppEnv> {
       type: MessageType.SESSIONS_UPDATE,
       timestamp: Date.now(),
       agentId: message.agentId,
-      sessions: message.sessions,
+      sessions: filtered,
     });
   }
 
   private async handleSessionDelete(message: SessionDelete): Promise<void> {
     const agent = this.agents.get(message.agentId);
     if (!agent) return;
+
+    // Track deleted session so agents can't re-add it via updateSessions
+    this.deletedSessionIds.add(message.sessionId);
+    await this.ctx.storage.put('deletedSessionIds', Array.from(this.deletedSessionIds));
 
     // Remove session from agent entry
     if (agent.sessions) {

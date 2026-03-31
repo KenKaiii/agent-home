@@ -17,6 +17,11 @@ export const sessions = sqliteTable('sessions', {
   updatedAt: integer('updated_at').notNull(),
 });
 
+export const deletedSessions = sqliteTable('deleted_sessions', {
+  id: text('id').primaryKey(),
+  deletedAt: integer('deleted_at').notNull(),
+});
+
 export const messages = sqliteTable('messages', {
   id: text('id').primaryKey(),
   agentId: text('agent_id').notNull(),
