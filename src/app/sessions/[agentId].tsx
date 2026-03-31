@@ -1,7 +1,16 @@
-import { useCallback, useMemo, useRef } from 'react';
-import { Animated, FlatList, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import {
+  Animated,
+  Easing,
+  FlatList,
+  PanResponder,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 
 import { MessageType } from '@agent-home/protocol';
 import { BubbleChatAddIcon } from '@hugeicons/core-free-icons';
@@ -37,20 +46,58 @@ function SessionRow({
   session,
   onPress,
   onDelete,
+  onSwipeStart,
+  onSwipeOpen,
+  onSwipeClose,
+  closeRef,
 }: {
   session: AgentSession;
   onPress: () => void;
   onDelete: () => void;
+  onSwipeStart: () => void;
+  onSwipeOpen: () => void;
+  onSwipeClose: () => void;
+  closeRef: React.MutableRefObject<(() => void) | null>;
 }) {
   const translateX = useRef(new Animated.Value(0)).current;
   const isOpen = useRef(false);
+  const isSwiping = useRef(false);
+
+  // Store callbacks in refs so the PanResponder (created once) always reads latest values
+  const callbacksRef = useRef({ onSwipeStart, onSwipeOpen, onSwipeClose });
+  callbacksRef.current = { onSwipeStart, onSwipeOpen, onSwipeClose };
+
+  const close = useCallback(() => {
+    if (isOpen.current) {
+      isOpen.current = false;
+      Animated.timing(translateX, {
+        toValue: 0,
+        duration: 250,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+      callbacksRef.current.onSwipeClose();
+    }
+  }, [translateX]);
+
+  // Keep closeRef pointing to this row's close when it's the open row
+  const closeRefStable = useRef(closeRef);
+  closeRefStable.current = closeRef;
 
   const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        return (
-          Math.abs(gestureState.dx) > 10 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy)
-        );
+        // Require a clear horizontal intent — dx must exceed dy by 2x
+        // and pass a minimum threshold to avoid stealing vertical scrolls
+        const dominated = Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 2;
+        return Math.abs(gestureState.dx) > 15 && dominated;
+      },
+      // Once we claim the gesture, don't let the FlatList steal it back
+      onPanResponderTerminationRequest: () => false,
+      onShouldBlockNativeResponder: () => true,
+      onPanResponderGrant: () => {
+        isSwiping.current = true;
+        callbacksRef.current.onSwipeStart();
       },
       onPanResponderMove: (_, gestureState) => {
         if (isOpen.current) {
@@ -63,21 +110,31 @@ function SessionRow({
         }
       },
       onPanResponderRelease: (_, gestureState) => {
+        isSwiping.current = false;
+        // Use velocity-aware spring so the animation continues the user's flick naturally
+        const velocity = gestureState.vx;
         if (isOpen.current) {
           // If swiped right enough, close
           if (gestureState.dx > SWIPE_THRESHOLD) {
             isOpen.current = false;
+            callbacksRef.current.onSwipeClose();
             Animated.spring(translateX, {
               toValue: 0,
+              velocity,
+              stiffness: 300,
+              damping: 30,
+              mass: 0.8,
               useNativeDriver: true,
-              bounciness: 0,
             }).start();
           } else {
             // Snap back open
             Animated.spring(translateX, {
               toValue: -DELETE_BUTTON_WIDTH,
+              velocity,
+              stiffness: 300,
+              damping: 30,
+              mass: 0.8,
               useNativeDriver: true,
-              bounciness: 0,
             }).start();
           }
         } else {
@@ -85,20 +142,39 @@ function SessionRow({
           if (gestureState.dx < -SWIPE_THRESHOLD) {
             selectionTick();
             isOpen.current = true;
+            closeRefStable.current.current = close;
+            callbacksRef.current.onSwipeOpen();
             Animated.spring(translateX, {
               toValue: -DELETE_BUTTON_WIDTH,
+              velocity,
+              stiffness: 300,
+              damping: 30,
+              mass: 0.8,
               useNativeDriver: true,
-              bounciness: 0,
             }).start();
           } else {
             // Snap back closed
             Animated.spring(translateX, {
               toValue: 0,
+              velocity,
+              stiffness: 300,
+              damping: 30,
+              mass: 0.8,
               useNativeDriver: true,
-              bounciness: 0,
             }).start();
           }
         }
+      },
+      onPanResponderTerminate: () => {
+        // Gesture was stolen — snap back to nearest stable state
+        isSwiping.current = false;
+        Animated.spring(translateX, {
+          toValue: isOpen.current ? -DELETE_BUTTON_WIDTH : 0,
+          stiffness: 300,
+          damping: 30,
+          mass: 0.8,
+          useNativeDriver: true,
+        }).start();
       },
     }),
   ).current;
@@ -145,8 +221,37 @@ function SessionRow({
 export default function SessionsScreen() {
   const { agentId } = useLocalSearchParams<{ agentId: string }>();
   const router = useRouter();
+  const navigation = useNavigation();
   const agent = useAgentsStore((s) => s.agents.get(agentId ?? ''));
   const removeSession = useAgentsStore((s) => s.removeSession);
+  const [scrollEnabled, setScrollEnabled] = useState(true);
+
+  // Track which row is open so we can close it and manage back gesture
+  const openRowCloseRef = useRef<(() => void) | null>(null);
+  const hasOpenRow = useRef(false);
+
+  const handleSwipeOpen = useCallback(() => {
+    hasOpenRow.current = true;
+    // Disable iOS back swipe while a delete button is showing
+    navigation.setOptions({ gestureEnabled: false });
+  }, [navigation]);
+
+  const handleSwipeClose = useCallback(() => {
+    hasOpenRow.current = false;
+    openRowCloseRef.current = null;
+    // Re-enable iOS back swipe
+    navigation.setOptions({ gestureEnabled: true });
+  }, [navigation]);
+
+  // Close any open row when a new swipe starts on a different row
+  const handleSwipeStart = useCallback(() => {
+    if (hasOpenRow.current && openRowCloseRef.current) {
+      openRowCloseRef.current();
+    }
+    setScrollEnabled(false);
+    // Re-enable after gesture completes
+    setTimeout(() => setScrollEnabled(true), 300);
+  }, []);
 
   // Refresh agent list (including sessions) every time this screen gains focus
   useFocusEffect(
@@ -208,11 +313,23 @@ export default function SessionsScreen() {
       <FlatList
         data={sessions}
         keyExtractor={(item) => item.id}
+        scrollEnabled={scrollEnabled}
         renderItem={({ item }) => (
           <SessionRow
             session={item}
-            onPress={() => router.push(`/chat/${agentId}?sessionId=${item.id}`)}
+            onPress={() => {
+              // Close any open row before navigating
+              if (hasOpenRow.current && openRowCloseRef.current) {
+                openRowCloseRef.current();
+                return;
+              }
+              router.push(`/chat/${agentId}?sessionId=${item.id}`);
+            }}
             onDelete={() => handleDeleteSession(item.id)}
+            onSwipeStart={handleSwipeStart}
+            onSwipeOpen={handleSwipeOpen}
+            onSwipeClose={handleSwipeClose}
+            closeRef={openRowCloseRef}
           />
         )}
         contentContainerStyle={styles.list}
