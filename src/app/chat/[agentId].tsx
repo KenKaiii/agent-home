@@ -1,13 +1,5 @@
-import { useRef } from 'react';
-import {
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { useCallback, useRef, useState } from 'react';
+import { Animated, FlatList, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -22,6 +14,7 @@ import { ChatBubble } from '@/components/ChatBubble';
 import { ChatInput } from '@/components/ChatInput';
 import { ConnectionStatus } from '@/components/ConnectionStatus';
 import { useChat } from '@/hooks/useChat';
+import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { colors, fontSize, spacing } from '@/lib/constants';
 import { useAgentsStore } from '@/stores/agents';
 import { useConnectionStore } from '@/stores/connection';
@@ -41,32 +34,50 @@ export default function ChatScreen() {
     Boolean(newChat),
   );
   const listRef = useRef<FlatList>(null);
+  const keyboardHeight = useKeyboardHeight();
+  const [inputHeight, setInputHeight] = useState(0);
+  const onInputLayout = useCallback((e: { nativeEvent: { layout: { height: number } } }) => {
+    setInputHeight(e.nativeEvent.layout.height);
+  }, []);
+
+  const listHeightRef = useRef(0);
+
+  const handleLayout = useCallback((e: { nativeEvent: { layout: { height: number } } }) => {
+    listHeightRef.current = e.nativeEvent.layout.height;
+  }, []);
+
+  const handleContentSizeChange = useCallback((_w: number, contentHeight: number) => {
+    const viewportHeight = listHeightRef.current;
+    if (contentHeight > viewportHeight) {
+      listRef.current?.scrollToOffset({
+        offset: contentHeight - viewportHeight,
+        animated: false,
+      });
+    }
+  }, []);
 
   const isDisabled = connectionStatus !== 'connected' || agent?.status === 'offline';
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={0}
-    >
+    <Animated.View style={[styles.container, { paddingBottom: keyboardHeight }]}>
       <ConnectionStatus />
       {messages.length === 0 ? (
-        <View style={styles.emptyContainer}>
+        <Pressable style={styles.emptyContainer} onPress={Keyboard.dismiss}>
           <HugeiconsIcon icon={AiBrain01Icon} size={48} color={colors.textSecondary} />
           <Text style={styles.emptyText}>
             Start a conversation with {agent?.name ?? 'this agent'}
           </Text>
-        </View>
+        </Pressable>
       ) : (
         <FlatList
           ref={listRef}
           data={messages}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => <ChatBubble message={item} />}
-          contentContainerStyle={styles.list}
-          onLayout={() => listRef.current?.scrollToEnd({ animated: false })}
-          onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+          contentContainerStyle={[styles.list, { paddingBottom: inputHeight }]}
+          keyboardDismissMode="interactive"
+          onLayout={handleLayout}
+          onContentSizeChange={handleContentSizeChange}
           ListFooterComponent={
             isStreaming ? (
               <View style={styles.typingContainer}>
@@ -85,7 +96,7 @@ export default function ChatScreen() {
           </Pressable>
         }
       />
-      <View style={styles.inputContainer}>
+      <View style={styles.inputContainer} onLayout={onInputLayout}>
         <MaskedView
           style={StyleSheet.absoluteFillObject}
           pointerEvents="none"
@@ -101,7 +112,7 @@ export default function ChatScreen() {
         </MaskedView>
         <ChatInput onSend={sendMessage} disabled={isDisabled} isWorking={isWorking} />
       </View>
-    </KeyboardAvoidingView>
+    </Animated.View>
   );
 }
 
@@ -112,7 +123,6 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingTop: 100,
-    paddingBottom: spacing.md,
   },
   emptyContainer: {
     flex: 1,
@@ -136,6 +146,10 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   inputContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     paddingBottom: spacing.md,
   },
 });
