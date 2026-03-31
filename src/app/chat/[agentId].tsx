@@ -96,7 +96,10 @@ export default function ChatScreen() {
           </Pressable>
         }
       />
-      <View style={styles.inputContainer} onLayout={onInputLayout}>
+      <Animated.View
+        style={[styles.inputContainer, { bottom: keyboardHeight }]}
+        onLayout={onInputLayout}
+      >
         <MaskedView
           style={StyleSheet.absoluteFillObject}
           pointerEvents="none"
@@ -111,7 +114,7 @@ export default function ChatScreen() {
           <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
         </MaskedView>
         <ChatInput onSend={sendMessage} disabled={isDisabled} isWorking={isWorking} />
-      </View>
+      </Animated.View>
     </Animated.View>
   );
 }
@@ -147,7 +150,6 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     position: 'absolute',
-    bottom: 0,
     left: 0,
     right: 0,
     paddingBottom: spacing.md,

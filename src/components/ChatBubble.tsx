@@ -17,7 +17,7 @@ LogBox.ignoreLogs(['A props object containing a "key" prop is being spread into 
 
 const markdownStyles = StyleSheet.create({
   // Base
-  body: { color: colors.text, fontSize: fontSize.lg },
+  body: { color: colors.text, fontSize: 18 },
   paragraph: {
     marginTop: spacing.sm,
     marginBottom: spacing.sm,
@@ -47,7 +47,7 @@ const markdownStyles = StyleSheet.create({
   },
   heading3: {
     color: colors.text,
-    fontSize: fontSize.lg,
+    fontSize: 18,
     fontWeight: 'bold',
     marginTop: spacing.md,
     marginBottom: spacing.xs,
@@ -55,7 +55,7 @@ const markdownStyles = StyleSheet.create({
   },
   heading4: {
     color: colors.text,
-    fontSize: fontSize.lg,
+    fontSize: 18,
     fontWeight: 'bold',
     marginTop: spacing.md,
     marginBottom: spacing.xs,
@@ -63,7 +63,7 @@ const markdownStyles = StyleSheet.create({
   },
   heading5: {
     color: colors.textSecondary,
-    fontSize: fontSize.lg,
+    fontSize: 18,
     fontWeight: 'bold',
     marginTop: spacing.sm,
     marginBottom: spacing.xs,
@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
   },
   userText: {
     color: '#ffffff',
-    fontSize: fontSize.lg,
+    fontSize: 18,
   },
   footer: {
     flexDirection: 'row',
