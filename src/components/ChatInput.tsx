@@ -87,6 +87,7 @@ function ShimmerBorder({ isWorking }: { isWorking: boolean }) {
 
 export function ChatInput({ onSend, disabled, isWorking = false }: ChatInputProps) {
   const [text, setText] = useState('');
+  const [inputKey, setInputKey] = useState(0);
 
   const handleSend = () => {
     const trimmed = text.trim();
@@ -95,6 +96,7 @@ export function ChatInput({ onSend, disabled, isWorking = false }: ChatInputProp
     playClick();
     onSend(trimmed);
     setText('');
+    setInputKey((k) => k + 1);
   };
 
   return (
@@ -103,6 +105,7 @@ export function ChatInput({ onSend, disabled, isWorking = false }: ChatInputProp
         <ShimmerBorder isWorking={isWorking} />
         <BlurView intensity={60} tint="systemChromeMaterialDark" style={styles.inputWrapper}>
           <TextInput
+            key={inputKey}
             style={styles.input}
             value={text}
             onChangeText={setText}
@@ -151,6 +154,7 @@ const styles = StyleSheet.create({
   inputWrapper: {
     borderRadius: BORDER_RADIUS - BORDER_WIDTH,
     minHeight: 100,
+    maxHeight: 200,
     position: 'relative',
     overflow: 'hidden',
     margin: BORDER_WIDTH,
@@ -165,6 +169,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: fontSize.lg,
     minHeight: 100,
+    maxHeight: 200,
   },
   sendButton: {
     position: 'absolute',
